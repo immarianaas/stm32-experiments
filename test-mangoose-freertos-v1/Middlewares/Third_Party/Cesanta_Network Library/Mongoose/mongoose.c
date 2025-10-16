@@ -23877,33 +23877,33 @@ static bool mg_tcpip_driver_stm32f_poll(struct mg_tcpip_if *ifp, bool s1) {
 #ifdef __riscv
 __attribute__((interrupt()))  // For RISCV CH32V307, which share the same MAC
 #endif
-void ETH_IRQHandler(void);
-void ETH_IRQHandler(void) {
-  if (ETH->DMASR & MG_BIT(6)) {           // Frame received, loop
-    ETH->DMASR = MG_BIT(16) | MG_BIT(6);  // Clear flag
-    for (uint32_t i = 0; i < 10; i++) {   // read as they arrive but not forever
-      if (s_rxdesc[s_rxno][0] & MG_BIT(31)) break;  // exit when done
-      if (((s_rxdesc[s_rxno][0] & (MG_BIT(8) | MG_BIT(9))) ==
-           (MG_BIT(8) | MG_BIT(9))) &&
-          !(s_rxdesc[s_rxno][0] & MG_BIT(15))) {  // skip partial/errored frames
-        uint32_t len = ((s_rxdesc[s_rxno][0] >> 16) & (MG_BIT(14) - 1));
-        //  printf("%lx %lu %lx %.8lx\n", s_rxno, len, s_rxdesc[s_rxno][0],
-        //  ETH->DMASR);
-        mg_tcpip_qwrite(s_rxbuf[s_rxno], len > 4 ? len - 4 : len, s_ifp);
-      }
-      s_rxdesc[s_rxno][0] = MG_BIT(31);
-      if (++s_rxno >= ETH_DESC_CNT) s_rxno = 0;
-    }
-  }
-  // Cleanup flags
-  ETH->DMASR = MG_BIT(16)    // NIS, normal interrupt summary
-               | MG_BIT(7);  // Clear possible RBUS while processing
-  ETH->DMARPDR = 0;          // and resume RX
-}
-
-struct mg_tcpip_driver mg_tcpip_driver_stm32f = {
-    mg_tcpip_driver_stm32f_init, mg_tcpip_driver_stm32f_tx, NULL,
-    mg_tcpip_driver_stm32f_poll};
+//void ETH_IRQHandler(void);
+//void ETH_IRQHandler(void) {
+//  if (ETH->DMASR & MG_BIT(6)) {           // Frame received, loop
+//    ETH->DMASR = MG_BIT(16) | MG_BIT(6);  // Clear flag
+//    for (uint32_t i = 0; i < 10; i++) {   // read as they arrive but not forever
+//      if (s_rxdesc[s_rxno][0] & MG_BIT(31)) break;  // exit when done
+//      if (((s_rxdesc[s_rxno][0] & (MG_BIT(8) | MG_BIT(9))) ==
+//           (MG_BIT(8) | MG_BIT(9))) &&
+//          !(s_rxdesc[s_rxno][0] & MG_BIT(15))) {  // skip partial/errored frames
+//        uint32_t len = ((s_rxdesc[s_rxno][0] >> 16) & (MG_BIT(14) - 1));
+//        //  printf("%lx %lu %lx %.8lx\n", s_rxno, len, s_rxdesc[s_rxno][0],
+//        //  ETH->DMASR);
+//        mg_tcpip_qwrite(s_rxbuf[s_rxno], len > 4 ? len - 4 : len, s_ifp);
+//      }
+//      s_rxdesc[s_rxno][0] = MG_BIT(31);
+//      if (++s_rxno >= ETH_DESC_CNT) s_rxno = 0;
+//    }
+//  }
+//  // Cleanup flags
+//  ETH->DMASR = MG_BIT(16)    // NIS, normal interrupt summary
+//               | MG_BIT(7);  // Clear possible RBUS while processing
+//  ETH->DMARPDR = 0;          // and resume RX
+//}
+//
+//struct mg_tcpip_driver mg_tcpip_driver_stm32f = {
+//    mg_tcpip_driver_stm32f_init, mg_tcpip_driver_stm32f_tx, NULL,
+//    mg_tcpip_driver_stm32f_poll};
 #endif
 
 #ifdef MG_ENABLE_LINES

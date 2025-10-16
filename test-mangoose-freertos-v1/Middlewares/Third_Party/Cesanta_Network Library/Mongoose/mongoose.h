@@ -49,7 +49,7 @@ extern "C" {
 
 #if !defined(MG_ARCH)
 #if defined(__unix__) || defined(__APPLE__)
-#define MG_ARCH MG_ARCH_UNIX
+#define MG_ARCH MG_ARCH_FREERTOS
 #elif defined(_WIN32)
 #define MG_ARCH MG_ARCH_WIN32
 #endif
@@ -894,11 +894,11 @@ struct timeval {
 #endif
 
 #ifndef MG_ENABLE_TCPIP
-#define MG_ENABLE_TCPIP 0  // Mongoose built-in network stack
+#define MG_ENABLE_TCPIP 1  // Mongoose built-in network stack
 #endif
 
 #ifndef MG_ENABLE_LWIP
-#define MG_ENABLE_LWIP 0  // lWIP network stack
+#define MG_ENABLE_LWIP 1  // lWIP network stack
 #endif
 
 #ifndef MG_ENABLE_FREERTOS_TCP
@@ -1041,7 +1041,7 @@ struct timeval {
 #endif
 
 #ifndef MG_ENABLE_TCPIP_DRIVER_INIT    // mg_mgr_init() will also initialize
-#define MG_ENABLE_TCPIP_DRIVER_INIT 1  // enabled built-in driver for
+#define MG_ENABLE_TCPIP_DRIVER_INIT 0  // enabled built-in driver for
 #endif                                 // Mongoose built-in network stack
 
 #ifndef MG_TCPIP_IP                      // e.g. MG_IPV4(192, 168, 0, 223)
