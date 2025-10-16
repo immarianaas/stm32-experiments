@@ -93,16 +93,30 @@ void usb_printf(const char *msg) {
 
 static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
 	if (ev == MG_EV_HTTP_MSG) {
-		struct mg_http_message *hm = (struct mg_http_message*) ev_data;
-		mg_http_reply(c, 200, "Content-Type: text/plain\r\n",
-				"Hello from STM32!\r\n");
-		LOG("http reply");
+        struct mg_http_message *hm = (struct mg_http_message *) ev_data;
+
+        // Convert URI to C string (not null-terminated)
+        char path[64];
+        int len = (hm->uri.len < sizeof(path)-1) ? hm->uri.len : sizeof(path)-1;
+        memcpy(path, hm->uri.buf, len);
+        path[len] = '\0';
+
+        // Simple routing
+        if (strcmp(path, "/") == 0) {
+            mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Home page!\n");
+        } else if (strcmp(path, "/status") == 0) {
+            mg_http_reply(c, 200, "Content-Type: application/json\r\n", "{\"status\":\"OK\"}\n");
+        } else if (strcmp(path, "/toggle") == 0) {
+            mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Toggled LED\n");
+        } else {
+            mg_http_reply(c, 404, "Content-Type: text/plain\r\n", "Not found\n");
+        }
 	}
 
-
-	char buf[64];
-	sprintf(buf, "[event %d]\r\n", ev);
-	CDC_Transmit_FS((uint8_t *)buf, strlen(buf));
+//
+//	char buf[64];
+//	sprintf(buf, "[event %d]\r\n", ev);
+//	CDC_Transmit_FS((uint8_t *)buf, strlen(buf));
 
 
 
