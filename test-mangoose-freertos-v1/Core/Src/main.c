@@ -77,10 +77,16 @@ void StartMongooseTask(void const *argument);
 struct mg_mgr mgr;
 
 
-void usb_printf(const char *msg) {
+void usb_printf(const char *fmt, ...) {
+    char buffer[256];  // adjust size if needed
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
     uint8_t result;
     do {
-        result = CDC_Transmit_FS((uint8_t *)msg, strlen(msg));
+        result = CDC_Transmit_FS((uint8_t *)buffer, strlen(buffer));
         if (result == USBD_BUSY) {
             osDelay(1); // wait a millisecond and retry
         }
@@ -89,7 +95,8 @@ void usb_printf(const char *msg) {
 
 
 
-#define LOG(msg)  usb_printf(msg "\r\n")
+
+#define LOG(msg)  usb_printf("%s\r\n", msg);
 
 static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
 	if (ev == MG_EV_HTTP_MSG) {
@@ -417,6 +424,19 @@ void StartMongooseTask(void const *argument) {
 		// LOG("inside while");
 	}
 
+//	char buf[64];
+//	ip4_addr_t ip = *netif_ip4_addr(netif_default);
+//	sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
+//			ip4_addr3(&ip), ip4_addr4(&ip));
+//	LOG(buf);
+
+    char buf[64];
+    ip4_addr_t ip = *netif_ip4_addr(netif_default);
+    sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
+                    ip4_addr3(&ip), ip4_addr4(&ip));
+    LOG(buf);
+
+
 	LOG("OUTSIDE");
 	LOG("OUTSIDE");
 	LOG("OUTSIDE");
@@ -459,6 +479,12 @@ void StartMongooseTask(void const *argument) {
 //  while (netif_is_link_up(netif_list) == 0 || netif_is_up(netif_list) == 0) {
 //    osDelay(100);
 //  }
+
+
+    ip = *netif_ip4_addr(netif_default);
+    sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
+                    ip4_addr3(&ip), ip4_addr4(&ip));
+    LOG(buf);
 
 	// Start HTTP server
 	// struct mg_connection *c =
