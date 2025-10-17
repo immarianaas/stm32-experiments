@@ -449,6 +449,7 @@ void StartMongooseTask(void const *argument) {
 	}
 
 	LOG("OUTSIDE");
+	printf("outside 2\r\n");
 
 //  printf(netif_default);
 	// printf("IP: %s\r\n", ipaddr_ntoa(netif_ip4_addr(netif_default)));
@@ -490,16 +491,15 @@ void StartMongooseTask(void const *argument) {
 	mdns_resp_init();
 	LOG("mdns_resp_init finished");
 
-	err = mdns_resp_add_netif(netif_default, "lwip", 3600);
+	mdns_resp_add_netif(netif_default, "22222222", 3600);
 
-	sprintf(buf, "mdns_resp_add_netif returned: %d", err);
-	LOG(buf);
 
-	err = mdns_resp_add_service(netif_default, "stm32-http", "_http",
+	mdns_resp_add_service(netif_default, "22222222", "_speakerlink",
 			DNSSD_PROTO_TCP, 80, 3600, NULL, NULL);
 
-	sprintf(buf, "mdns_resp_add_service returned: %d", err);
-	LOG(buf);
+
+
+	// osDelay(5000);
 
 	mdns_resp_announce(netif_default);  // 🔹 actively broadcast the service
 	LOG("mdns_resp_announce finished");
