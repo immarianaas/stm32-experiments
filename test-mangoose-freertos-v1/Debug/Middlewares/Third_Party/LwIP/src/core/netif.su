@@ -18,6 +18,7 @@
 ../Middlewares/Third_Party/LwIP/src/core/netif.c:988:1:netif_set_link_up	16	static
 ../Middlewares/Third_Party/LwIP/src/core/netif.c:1026:1:netif_set_link_down	16	static
 ../Middlewares/Third_Party/LwIP/src/core/netif.c:1051:1:netif_set_link_callback	16	static
+../Middlewares/Third_Party/LwIP/src/core/netif.c:1287:1:netif_alloc_client_data_id	16	static
 ../Middlewares/Third_Party/LwIP/src/core/netif.c:1619:1:netif_null_output_ip4	24	static
 ../Middlewares/Third_Party/LwIP/src/core/netif.c:1637:1:netif_name_to_index	24	static
 ../Middlewares/Third_Party/LwIP/src/core/netif.c:1656:1:netif_index_to_name	24	static

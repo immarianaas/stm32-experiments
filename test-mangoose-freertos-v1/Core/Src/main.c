@@ -25,9 +25,12 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "mongoose.h"
+//#include "mongoose.h"
 #include "lwip/netif.h"
+#include "lwip/dhcp.h"
 #include "usbd_cdc_if.h"
+#include <stdarg.h>
+#include "lwip/apps/mdns.h"
 
 /* USER CODE END Includes */
 
@@ -45,8 +48,6 @@
 /* USER CODE BEGIN PM */
 
 #define LOG2(msg)  CDC_Transmit_FS((uint8_t *)(msg), strlen(msg))
-
-
 
 /* USER CODE END PM */
 
@@ -74,68 +75,73 @@ void StartMongooseTask(void const *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-struct mg_mgr mgr;
-
 
 void usb_printf(const char *fmt, ...) {
-    char buffer[256];  // adjust size if needed
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
+	char buffer[256];  // adjust size if needed
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buffer, sizeof(buffer), fmt, args);
+	va_end(args);
 
-    uint8_t result;
-    do {
-        result = CDC_Transmit_FS((uint8_t *)buffer, strlen(buffer));
-        if (result == USBD_BUSY) {
-            osDelay(1); // wait a millisecond and retry
-        }
-    } while (result == USBD_BUSY);
+	uint8_t result;
+	do {
+		result = CDC_Transmit_FS((uint8_t*) buffer, strlen(buffer));
+		if (result == USBD_BUSY) {
+			osDelay(1); // wait a millisecond and retry
+		}
+	} while (result == USBD_BUSY);
 }
 
-
-
-
 #define LOG(msg)  usb_printf("%s\r\n", msg);
-
-static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
-	if (ev == MG_EV_HTTP_MSG) {
-        struct mg_http_message *hm = (struct mg_http_message *) ev_data;
-
-        // Convert URI to C string (not null-terminated)
-        char path[64];
-        int len = (hm->uri.len < sizeof(path)-1) ? hm->uri.len : sizeof(path)-1;
-        memcpy(path, hm->uri.buf, len);
-        path[len] = '\0';
-
-        // Simple routing
-        if (strcmp(path, "/") == 0) {
-            mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Home page!\n");
-        } else if (strcmp(path, "/status") == 0) {
-            mg_http_reply(c, 200, "Content-Type: application/json\r\n", "{\"status\":\"OK\"}\n");
-        } else if (strcmp(path, "/toggle") == 0) {
-            mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Toggled LED\n");
-        } else {
-            mg_http_reply(c, 404, "Content-Type: text/plain\r\n", "Not found\n");
-        }
-	}
-
+//
+//static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
+//	if (ev == MG_EV_HTTP_MSG) {
+//		struct mg_http_message *hm = (struct mg_http_message*) ev_data;
+//
+//		// Convert URI to C string (not null-terminated)
+//		char path[64];
+//		int len =
+//				(hm->uri.len < sizeof(path) - 1) ?
+//						hm->uri.len : sizeof(path) - 1;
+//		memcpy(path, hm->uri.buf, len);
+//		path[len] = '\0';
+//
+//		// Simple routing
+//		if (strcmp(path, "/") == 0) {
+//			mg_http_reply(c, 200, "Content-Type: text/plain\r\n",
+//					"Home page!\n");
+//		} else if (strcmp(path, "/status") == 0) {
+//			mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+//					"{\"status\":\"OK\"}\n");
+//		} else if (strcmp(path, "/toggle") == 0) {
+//			mg_http_reply(c, 200, "Content-Type: text/plain\r\n",
+//					"Toggled LED\n");
+//		} else {
+//			mg_http_reply(c, 404, "Content-Type: text/plain\r\n",
+//					"Not found\n");
+//		}
+//	}
+//	if (ev == MG_EV_ERROR) {
+//		char *err_str = (char*) ev_data;
+//		if (err_str) {
+//			usb_printf("HTTP ERROR: %s\r\n", err_str);
+//		} else {
+//			usb_printf("HTTP ERROR: Unknown\r\n");
+//		}
+//	}
 //
 //	char buf[64];
 //	sprintf(buf, "[event %d]\r\n", ev);
-//	CDC_Transmit_FS((uint8_t *)buf, strlen(buf));
-
-
-
-		// LOG("[http handler]");
-
-// CDC_Transmit_FS((uint8_t *)"[http_handler]\r\n", strlen("[http_handler]\r\n"));
-
-}
-
-
-
-
+//	CDC_Transmit_FS((uint8_t*) buf, strlen(buf));
+//
+//	struct dhcp *d = netif_dhcp_data(netif_default);
+//	usb_printf("DHCP state=%d\r\n", d ? d->state : -1);
+//
+//	LOG("[http handler]");
+//
+//// CDC_Transmit_FS((uint8_t *)"[http_handler]\r\n", strlen("[http_handler]\r\n"));
+//
+//}
 
 /* USER CODE END 0 */
 
@@ -403,7 +409,6 @@ static void MX_GPIO_Init(void) {
  */
 /* USER CODE END Header_StartMongooseTask */
 void StartMongooseTask(void const *argument) {
-
 	/* init code for LWIP */
 	MX_LWIP_Init();
 
@@ -415,11 +420,10 @@ void StartMongooseTask(void const *argument) {
 	/* USER CODE BEGIN 5 */
 	// wait for LWIP to be on (probably should be changed..?)
 	// osDelay(1000);
-
 	while (netif_default == NULL || !netif_is_up(netif_default)
 			|| !ip4_addr_isany_val(*netif_ip4_addr(netif_default))
-			// || netif_is_link_up(netif_list) == 0
-			) {
+	// || netif_is_link_up(netif_list) == 0
+	) {
 		osDelay(100);
 		// LOG("inside while");
 	}
@@ -430,25 +434,26 @@ void StartMongooseTask(void const *argument) {
 //			ip4_addr3(&ip), ip4_addr4(&ip));
 //	LOG(buf);
 
-    char buf[64];
-    ip4_addr_t ip = *netif_ip4_addr(netif_default);
-    sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
-                    ip4_addr3(&ip), ip4_addr4(&ip));
-    LOG(buf);
+	char buf[64];
+	ip4_addr_t ip = *netif_ip4_addr(netif_default);
+	sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
+			ip4_addr3(&ip), ip4_addr4(&ip));
+	LOG(buf);
 
+	extern struct dhcp_state_enum_t;
+
+	struct dhcp *dhcp_client = netif_dhcp_data(netif_default);
+	while (dhcp_client == NULL || dhcp_client->state != 10) {
+		osDelay(100);
+		// safe to read IP
+	}
 
 	LOG("OUTSIDE");
-	LOG("OUTSIDE");
-	LOG("OUTSIDE");
-	LOG("OUTSIDE");
-	LOG("OUTSIDE");
-	LOG("OUTSIDE");
-	LOG("OUTSIDE");
+	printf("outside 2\r\n");
 
 //  printf(netif_default);
 	// printf("IP: %s\r\n", ipaddr_ntoa(netif_ip4_addr(netif_default)));
 
-	// extern struct netif gnetif;
 //
 //
 //  /* Wait for network to be ready (DHCP done) */
@@ -466,29 +471,45 @@ void StartMongooseTask(void const *argument) {
 //    osDelay(500);
 //  }
 
-	mg_mgr_init(&mgr);
-
-//	LOG("checking that it works\r\n");
-//	LOG("checking that it works\r\n");
-//	LOG("checking that it works\r\n");
-//	LOG("checking that it works\r\n");
-//	LOG("checking that it works\r\n");
-//	LOG("checking that it works\r\n");
-
 //  // Wait for network link and IP (DHCP)
 //  while (netif_is_link_up(netif_list) == 0 || netif_is_up(netif_list) == 0) {
 //    osDelay(100);
 //  }
 
+//    ip = *netif_ip4_addr(netif_default);
+//    sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
+//                    ip4_addr3(&ip), ip4_addr4(&ip));
+//    LOG(buf);
 
-    ip = *netif_ip4_addr(netif_default);
-    sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
-                    ip4_addr3(&ip), ip4_addr4(&ip));
-    LOG(buf);
+	err_t err;
+	ip = *netif_ip4_addr(netif_default);
+	sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
+			ip4_addr3(&ip), ip4_addr4(&ip));
+	LOG(buf);
 
-	// Start HTTP server
-	// struct mg_connection *c =
-	mg_http_listen(&mgr, "http://0.0.0.0:80", http_handler, NULL);
+	LOG("mdns_resp_init starting");
+	mdns_resp_init();
+	LOG("mdns_resp_init finished");
+
+	mdns_resp_add_netif(netif_default, "22222222", 3600);
+
+
+	mdns_resp_add_service(netif_default, "22222222", "_speakerlink",
+			DNSSD_PROTO_TCP, 80, 3600, NULL, NULL);
+
+
+
+	// osDelay(5000);
+
+	mdns_resp_announce(netif_default);  // 🔹 actively broadcast the service
+	LOG("mdns_resp_announce finished");
+
+//	struct mg_mgr mgr;
+//	mg_mgr_init(&mgr);
+//
+//	// Start HTTP server
+//	// struct mg_connection *c =
+//	mg_http_listen(&mgr, "http://0.0.0.0:80", http_handler, &mgr);
 //  if (c == NULL) {
 //	  CDC_Transmit_FS((uint8_t *)"Error: Cannot start HTTP listener\r\n", strlen("Error: Cannot start HTTP listener\r\n"));
 //  } else {
@@ -497,11 +518,11 @@ void StartMongooseTask(void const *argument) {
 
 	// Main event loop
 	for (;;) {
-		mg_mgr_poll(&mgr, 10);   // 10 ms polling
+//		mg_mgr_poll(&mgr, 10);   // 10 ms polling
 		osDelay(1);              // Yield to other FreeRTOS tasks
 	}
 
-	mg_mgr_free(&mgr);
+	// mg_mgr_free(&mgr);
 
 	/* USER CODE END 5 */
 }

@@ -41,7 +41,32 @@ Core/Src/syscalls.o: ../Core/Src/syscalls.c \
  ../Middlewares/Third_Party/LwIP/src/include/lwip/debug.h \
  ../Middlewares/Third_Party/LwIP/src/include/lwip/arch.h \
  ../Middlewares/Third_Party/LwIP/system/arch/cc.h \
- ../Middlewares/Third_Party/LwIP/system/arch/cpu.h
+ ../Middlewares/Third_Party/LwIP/system/arch/cpu.h \
+ ../USB_DEVICE/App/usbd_cdc_if.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc/usbd_cdc.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
+ ../USB_DEVICE/Target/usbd_conf.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h \
+ ../Core/Inc/FreeRTOSConfig.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1/portmacro.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h
 ../Middlewares/Third_Party/LwIP/src/include/lwip/errno.h:
 ../Middlewares/Third_Party/LwIP/src/include/lwip/opt.h:
 ../LWIP/Target/lwipopts.h:
@@ -86,3 +111,28 @@ Core/Src/syscalls.o: ../Core/Src/syscalls.c \
 ../Middlewares/Third_Party/LwIP/src/include/lwip/arch.h:
 ../Middlewares/Third_Party/LwIP/system/arch/cc.h:
 ../Middlewares/Third_Party/LwIP/system/arch/cpu.h:
+../USB_DEVICE/App/usbd_cdc_if.h:
+../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc/usbd_cdc.h:
+../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
+../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
+../USB_DEVICE/Target/usbd_conf.h:
+../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h:
+../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
+../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:
+../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
+../Core/Inc/FreeRTOSConfig.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h:
+../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1/portmacro.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/task.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/list.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/task.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
