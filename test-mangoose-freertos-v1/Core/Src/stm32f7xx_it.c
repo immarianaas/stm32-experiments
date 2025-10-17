@@ -22,6 +22,7 @@
 #include "stm32f7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+//#include "mongoose.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -182,6 +183,8 @@ void ETH_IRQHandler(void)
 {
   /* USER CODE BEGIN ETH_IRQn 0 */
 //////////////
+	  // ETH_IRQHandler_Mongoose();
+
   /* USER CODE END ETH_IRQn 0 */
   HAL_ETH_IRQHandler(&heth);
   /* USER CODE BEGIN ETH_IRQn 1 */

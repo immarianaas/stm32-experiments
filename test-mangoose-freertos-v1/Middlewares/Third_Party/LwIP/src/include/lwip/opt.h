@@ -425,7 +425,7 @@
  * (requires the LWIP_UDP option)
  */
 #if !defined MEMP_NUM_UDP_PCB || defined __DOXYGEN__
-#define MEMP_NUM_UDP_PCB                4
+#define MEMP_NUM_UDP_PCB                5
 #endif
 
 /**
@@ -1663,7 +1663,7 @@
  * data in client_data member array of struct netif (max. 256).
  */
 #if !defined LWIP_NUM_NETIF_CLIENT_DATA || defined __DOXYGEN__
-#define LWIP_NUM_NETIF_CLIENT_DATA      0
+#define LWIP_NUM_NETIF_CLIENT_DATA      2
 #endif
 /**
  * @}
