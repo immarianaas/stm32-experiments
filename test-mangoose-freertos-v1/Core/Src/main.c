@@ -25,12 +25,15 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-//#include "mongoose.h"
+#include "mongoose.h"
 #include "lwip/netif.h"
 #include "lwip/dhcp.h"
 #include "usbd_cdc_if.h"
 #include <stdarg.h>
 #include "lwip/apps/mdns.h"
+
+#include "lwip/sockets.h"
+#include "lwip/netdb.h"
 
 /* USER CODE END Includes */
 
@@ -93,55 +96,238 @@ void usb_printf(const char *fmt, ...) {
 }
 
 #define LOG(msg)  usb_printf("%s\r\n", msg);
+
+//static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
+//		void *fn_data) {
+//	switch (ev) {
+//	case MG_EV_WS_OPEN:
+//		printf("WS connected to %s\n", c->peer);
+//		mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
+//		break;
 //
-//static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
-//	if (ev == MG_EV_HTTP_MSG) {
-//		struct mg_http_message *hm = (struct mg_http_message*) ev_data;
-//
-//		// Convert URI to C string (not null-terminated)
-//		char path[64];
-//		int len =
-//				(hm->uri.len < sizeof(path) - 1) ?
-//						hm->uri.len : sizeof(path) - 1;
-//		memcpy(path, hm->uri.buf, len);
-//		path[len] = '\0';
-//
-//		// Simple routing
-//		if (strcmp(path, "/") == 0) {
-//			mg_http_reply(c, 200, "Content-Type: text/plain\r\n",
-//					"Home page!\n");
-//		} else if (strcmp(path, "/status") == 0) {
-//			mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-//					"{\"status\":\"OK\"}\n");
-//		} else if (strcmp(path, "/toggle") == 0) {
-//			mg_http_reply(c, 200, "Content-Type: text/plain\r\n",
-//					"Toggled LED\n");
-//		} else {
-//			mg_http_reply(c, 404, "Content-Type: text/plain\r\n",
-//					"Not found\n");
-//		}
-//	}
-//	if (ev == MG_EV_ERROR) {
-//		char *err_str = (char*) ev_data;
-//		if (err_str) {
-//			usb_printf("HTTP ERROR: %s\r\n", err_str);
-//		} else {
-//			usb_printf("HTTP ERROR: Unknown\r\n");
-//		}
+//	case MG_EV_WS_MSG: {
+//		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
+//		printf("WS message: %.*s\n", (int) wm->data.len, wm->data.ptr);
+//		break;
 //	}
 //
-//	char buf[64];
-//	sprintf(buf, "[event %d]\r\n", ev);
-//	CDC_Transmit_FS((uint8_t*) buf, strlen(buf));
-//
-//	struct dhcp *d = netif_dhcp_data(netif_default);
-//	usb_printf("DHCP state=%d\r\n", d ? d->state : -1);
-//
-//	LOG("[http handler]");
-//
-//// CDC_Transmit_FS((uint8_t *)"[http_handler]\r\n", strlen("[http_handler]\r\n"));
-//
+//	case MG_EV_CLOSE:
+//		printf("WS connection closed\n");
+//		break;
+//	}
 //}
+
+struct mg_mgr mgr;
+int WS_READY = 0;
+char ws_url[24];
+
+static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
+		void *fn_data) {
+	switch (ev) {
+	case MG_EV_WS_OPEN:
+		printf("WS connected.");
+		mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
+		break;
+
+	case MG_EV_WS_MSG:
+		printf("MG_EV_WS_MSG");
+		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
+		printf("WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
+		break;
+
+	case MG_EV_CLOSE:
+		printf("WS connection closed\n");
+		break;
+	}
+
+	if (ev != MG_EV_POLL)
+		printf("[ws_client_fn] event = %d finished, ev_data =%s \r\n", ev, (char*) ev_data);
+
+}
+
+static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
+
+	switch (ev) {
+	case MG_EV_OPEN:
+//		printf("Connection created.\r\n");
+		break;
+
+	case MG_EV_ACCEPT:
+//		printf("Connection accepted.\r\n");
+		break;
+
+	case MG_EV_READ:
+//		char *data = c->recv.buf;
+//		int size = c->recv.len;
+//		printf("READ. data=%s len=%d\r\n", data, size);
+		break;
+
+	case MG_EV_WRITE:
+//		printf("WRITE.\r\n");
+		break;
+
+	case MG_EV_HTTP_HDRS:
+//		printf("Got headers, len=%d\r\n", (int) ev_data);
+		break;
+
+	case MG_EV_HTTP_MSG:
+
+		struct mg_http_message *hm = (struct mg_http_message*) ev_data;
+
+		// printf(">>> MG_EV_HTTP_MSG, uri = %s method= %s\r\n", hm->uri.buf, hm->method.buf);
+		printf(">>> MG_EV_HTTP_MSG \r\n");
+
+		if (mg_match(hm->uri, mg_str("/api/v1/speakerlink/role"), NULL)) {
+
+			// *** PUT ***
+			if (mg_match(hm->method, mg_str("PUT"), NULL)) {
+
+				/**
+				 * Expecting JSON object such as:
+				 * {
+				 * 	"channel": "any",
+				 * 	"hints": {...},
+				 * 	"operationCounter": 1,
+				 * 	"primary": "36956626",
+				 * 	"role": "secondary",
+				 * 	"serialNumber": "36956544"
+				 * 	}
+				 * 	For now, we're ignoring it...
+				 */
+
+//			    char json[1024];  // make sure it’s large enough
+//			    int n = snprintf(
+//			        json,
+//					1023,
+//			        "{ \"status\": \"ok\", \"received\": \"%s\" }",
+//			        hm->body.buf
+//			    );
+				printf("handling PUT\r\n");
+
+				// mg_http_reply(c, 202, "Content-Type: application/json\r\n", json); // MAR: maybe check what it should be exactly
+
+				mg_http_reply(c, 202, "Content-Type: application/json\r\n",
+						"{%m:%m, %m:%m}\n", MG_ESC("status"), MG_ESC("ok"),
+						MG_ESC("received"), MG_ESC(hm->body.buf));
+
+				printf("sent mg http reply for the PUT \r\n");
+
+				char *str = mg_json_get_str(hm->body, "$.role");
+				if (str != NULL && strcmp(str, "secondary") == 0) {
+					printf("Enter the IF\r\n");
+					// Extract the client's IP (remote address)
+					char ip_buf[16];
+					mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip,
+							&c->rem);
+					printf("Connected to client IP: %s\r\n", ip_buf);
+
+					// Build WebSocket URL
+					// char ws_url[24];
+					snprintf(ws_url, sizeof(ws_url), "ws://%s:8999", ip_buf);// Assuming server listens on /ws
+					printf("Connecting to %s\r\n", ws_url);
+					WS_READY = 1;
+				}
+
+				return;
+			}
+
+			// *** GET ***
+			else if (mg_match(hm->method, mg_str("GET"), NULL)) {
+				printf(">>> GETShould not be called... \r\n");
+				mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+						"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
+				return;
+//				// Extract the client's IP (remote address)
+//				char ip_buf[16];
+//				mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip, &c->rem);
+//				printf("Connected to client IP: %s\r\n", ip_buf);
+//
+//				// Build WebSocket URL
+//				// char ws_url[24];
+//				snprintf(ws_url, sizeof(ws_url), "ws://%s:8999", ip_buf);// Assuming server listens on /ws
+//				printf("Connecting to %s\r\n", ws_url);
+//				WS_READY = 1;
+
+				return;
+
+			}
+		}
+
+//						char *str = mg_json_get_str(hm->body, "$.role");
+//						if (str != NULL) {	// *** PUT ***
+//							// maybe can be improved to check if it is an actual PUT
+//
+//							/**
+//							 * Expecting JSON object such as:
+//							 * {
+//							 * 	"channel": "any",
+//							 * 	"hints": {...},
+//							 * 	"operationCounter": 1,
+//							 * 	"primary": "36956626",
+//							 * 	"role": "secondary",
+//							 * 	"serialNumber": "36956544"
+//							 * 	}
+//							 * 	For now, we're ignoring it...
+//							 */
+//							mg_free(str);
+//							mg_http_reply(c, 200,
+//									"Content-Type: text/plain\r\n", "ok\n"); // MAR: maybe check what it should be exactly
+//							return;
+//						}
+//						// *** GET ***
+//						mg_http_reply(c, 200,
+//								"Content-Type: application/json\r\n",
+//								"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
+
+//			// ------------------- start ws -------------------
+
+	case MG_EV_POLL:
+		break;
+
+	default:
+		printf("[http handler] none of the above, event=%d\r\n", ev);
+
+	}
+
+}
+
+//	static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
+//		if (ev != MG_EV_POLL)
+//			printf("[http handler] event = %d\r\n", ev);
+//
+//		if (ev == MG_EV_HTTP_MSG) {
+//			struct mg_http_message *hm = (struct mg_http_message*) ev_data;
+//
+//			// Convert URI to C string (not null-terminated)
+//			char path[64];
+//			int len =
+//					(hm->uri.len < sizeof(path) - 1) ?
+//							hm->uri.len : sizeof(path) - 1;
+//			memcpy(path, hm->uri.buf, len);
+//			path[len] = '\0';
+//
+//			// Simple routing
+//			if (strcmp(path, "/") == 0) {
+//				mg_http_reply(c, 200, "Content-Type: text/plain\r\n",
+//						"Home page!\n");
+//			} else {
+//				mg_http_reply(c, 404, "Content-Type: text/plain\r\n",
+//						"Not found\n");
+//			}
+//		}
+//		if (ev == MG_EV_ERROR) {
+//			char *err_str = (char*) ev_data;
+//			if (err_str) {
+//				usb_printf("HTTP ERROR: %s\r\n", err_str);
+//			} else {
+//				usb_printf("HTTP ERROR: Unknown\r\n");
+//			}
+//		}
+//
+//		if (ev != MG_EV_POLL)
+//			printf("[http handler] event = %d finished\r\n", ev);
+
+//	}
 
 /* USER CODE END 0 */
 
@@ -197,8 +383,10 @@ int main(void) {
 
 	/* Create the thread(s) */
 	/* definition and creation of MongooseTask */
-	osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 1024);
-	MongooseTaskHandle = osThreadCreate(osThread(MongooseTask), NULL);
+// osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 256);
+	osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 512);
+	MongooseTaskHandle = osThreadCreate(osThread(MongooseTask),
+	NULL);
 
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -330,7 +518,8 @@ static void MX_USART3_UART_Init(void) {
 	huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	huart3.Init.OverSampling = UART_OVERSAMPLING_16;
 	huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-	huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+	huart3.AdvancedInit.AdvFeatureInit =
+	UART_ADVFEATURE_NO_INIT;
 	if (HAL_UART_Init(&huart3) != HAL_OK) {
 		Error_Handler();
 	}
@@ -363,8 +552,8 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(GPIOB, LD1_Pin | LD3_Pin | LD2_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin,
-			GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port,
+	USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : USER_Btn_Pin */
 	GPIO_InitStruct.Pin = USER_Btn_Pin;
@@ -418,11 +607,11 @@ void StartMongooseTask(void const *argument) {
 	/* Infinite loop */
 
 	/* USER CODE BEGIN 5 */
-	// wait for LWIP to be on (probably should be changed..?)
-	// osDelay(1000);
+// wait for LWIP to be on (probably should be changed..?)
+// osDelay(1000);
 	while (netif_default == NULL || !netif_is_up(netif_default)
 			|| !ip4_addr_isany_val(*netif_ip4_addr(netif_default))
-	// || netif_is_link_up(netif_list) == 0
+// || netif_is_link_up(netif_list) == 0
 	) {
 		osDelay(100);
 		// LOG("inside while");
@@ -452,7 +641,7 @@ void StartMongooseTask(void const *argument) {
 	printf("outside 2\r\n");
 
 //  printf(netif_default);
-	// printf("IP: %s\r\n", ipaddr_ntoa(netif_ip4_addr(netif_default)));
+// printf("IP: %s\r\n", ipaddr_ntoa(netif_ip4_addr(netif_default)));
 
 //
 //
@@ -476,53 +665,47 @@ void StartMongooseTask(void const *argument) {
 //    osDelay(100);
 //  }
 
-//    ip = *netif_ip4_addr(netif_default);
-//    sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
-//                    ip4_addr3(&ip), ip4_addr4(&ip));
-//    LOG(buf);
-
 	err_t err;
 	ip = *netif_ip4_addr(netif_default);
 	sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
 			ip4_addr3(&ip), ip4_addr4(&ip));
 	LOG(buf);
 
-	LOG("mdns_resp_init starting");
+	LOG("mDNS starting");
 	mdns_resp_init();
-	LOG("mdns_resp_init finished");
+	mdns_resp_add_netif(netif_default, "22223335", 3600);
 
-	mdns_resp_add_netif(netif_default, "22222222", 3600);
+	mdns_resp_add_service(netif_default, "22223335", "_speakerlink",
+			DNSSD_PROTO_TCP, 80, 3600, NULL,
+			NULL);
 
+	mdns_resp_announce(netif_default); // actively broadcast the service
+	LOG("mDNS finished: 22223335");
 
-	mdns_resp_add_service(netif_default, "22222222", "_speakerlink",
-			DNSSD_PROTO_TCP, 80, 3600, NULL, NULL);
+// --------------- mongoose ---------------
 
+	mg_log_set(MG_LL_ERROR); //change to DEBUG for debug
+// mg_log_set_fn(NULL, NULL);
 
+	mg_mgr_init(&mgr);
 
-	// osDelay(5000);
+	mg_http_listen(&mgr, "http://0.0.0.0:80", http_fn, &mgr);
 
-	mdns_resp_announce(netif_default);  // 🔹 actively broadcast the service
-	LOG("mdns_resp_announce finished");
+	// mg_ws_connect(&mgr, "ws://192.168.3.7:8765/", ws_client_fn, NULL, NULL);
 
-//	struct mg_mgr mgr;
-//	mg_mgr_init(&mgr);
-//
-//	// Start HTTP server
-//	// struct mg_connection *c =
-//	mg_http_listen(&mgr, "http://0.0.0.0:80", http_handler, &mgr);
-//  if (c == NULL) {
-//	  CDC_Transmit_FS((uint8_t *)"Error: Cannot start HTTP listener\r\n", strlen("Error: Cannot start HTTP listener\r\n"));
-//  } else {
-//	  CDC_Transmit_FS((uint8_t *)"HTTP server started on port 80\r\n", strlen("HTTP server started on port 80\r\n"));
-//  }
-
-	// Main event loop
+// Main event loop
 	for (;;) {
-//		mg_mgr_poll(&mgr, 10);   // 10 ms polling
-		osDelay(1);              // Yield to other FreeRTOS tasks
+		mg_mgr_poll(&mgr, 100);   // 10 ms polling
+
+		if (WS_READY == 1) {
+			mg_ws_connect(&mgr, ws_url, ws_client_fn, NULL,
+			NULL);
+			WS_READY = 0;
+		}
+		// osDelay(1);              // Yield to other FreeRTOS tasks
 	}
 
-	// mg_mgr_free(&mgr);
+// mg_mgr_free(&mgr);
 
 	/* USER CODE END 5 */
 }
