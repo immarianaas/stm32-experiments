@@ -58,7 +58,7 @@
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Default Value for MEM_SIZE: 1600 ---*/
-#define MEM_SIZE 10*1024
+#define MEM_SIZE 10240
 /*----- Default Value for F7 devices: 0x20048000 -----*/
 #define LWIP_RAM_HEAP_POINTER 0x20048000
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
@@ -76,7 +76,7 @@
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
 /*----- Default Value for LWIP_NUM_NETIF_CLIENT_DATA: 0 ---*/
-#define LWIP_NUM_NETIF_CLIENT_DATA 2
+#define LWIP_NUM_NETIF_CLIENT_DATA 1
 /*----- Value in opt.h for TCPIP_THREAD_STACKSIZE: 0 -----*/
 #define TCPIP_THREAD_STACKSIZE 1024
 /*----- Value in opt.h for TCPIP_THREAD_PRIO: 1 -----*/
@@ -99,6 +99,18 @@
 #define DEFAULT_ACCEPTMBOX_SIZE 6
 /*----- Value in opt.h for RECV_BUFSIZE_DEFAULT: INT_MAX -----*/
 #define RECV_BUFSIZE_DEFAULT 2000000000
+/*----- Default Value for LWIP_HTTPD: 0 ---*/
+#define LWIP_HTTPD 1
+/*----- Default Value for LWIP_HTTPD_CGI: 0 ---*/
+#define LWIP_HTTPD_CGI 1
+/*----- Default Value for LWIP_HTTPD_CGI_SSI: 0 ---*/
+#define LWIP_HTTPD_CGI_SSI 1
+/*----- Default Value for LWIP_HTTPD_SSI: 0 ---*/
+#define LWIP_HTTPD_SSI 1
+/*----- Default Value for LWIP_HTTPD_SSI_RAW: 0 ---*/
+#define LWIP_HTTPD_SSI_RAW 1
+/*----- Default Value for LWIP_HTTPD_DYNAMIC_HEADERS: 0 ---*/
+#define LWIP_HTTPD_DYNAMIC_HEADERS 1
 /*----- Default Value for LWIP_MDNS: 0 ---*/
 #define LWIP_MDNS 1
 /*----- Default Value for LWIP_MDNS_RESPONDER: 0 ---*/
