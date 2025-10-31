@@ -496,9 +496,9 @@
 ../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20187:8:mg_ws_send	4
 ../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20198:13:mg_ws_client_handshake	6
 ../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20221:13:mg_ws_cb	22
-../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20292:23:mg_ws_connect	3
-../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20322:6:mg_ws_upgrade	2
-../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20342:8:mg_ws_wrap	2
-../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:22142:20:mg_phy_id_to_str	12
-../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:22169:6:mg_phy_init	12
-../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:22220:6:mg_phy_up	13
+../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20290:23:mg_ws_connect	3
+../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20320:6:mg_ws_upgrade	2
+../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:20340:8:mg_ws_wrap	2
+../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:22140:20:mg_phy_id_to_str	12
+../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:22167:6:mg_phy_init	12
+../Middlewares/Third_Party/Cesanta_Network Library/Mongoose/mongoose.c:22218:6:mg_phy_up	13
