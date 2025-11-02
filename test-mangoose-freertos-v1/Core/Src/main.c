@@ -36,6 +36,8 @@
 #include "lwip/netdb.h"
 
 #include "data.h"
+#include "lwip/udp.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,6 +64,7 @@ RTC_HandleTypeDef hrtc;
 UART_HandleTypeDef huart3;
 
 osThreadId MongooseTaskHandle;
+osThreadId HandlePTPTaskHandle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -72,6 +75,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_RTC_Init(void);
 void StartMongooseTask(void const *argument);
+void StartHandlePTPTask(void const *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -119,8 +123,50 @@ void usb_printf(const char *fmt, ...) {
 //}
 
 struct mg_mgr mgr;
+// extern struct udp_pcb *udp_pcbs;
+
 int WS_READY = 0;
 char ws_url[24];
+
+
+static void handle_udp_ptp( void* arg,              // User argument - udp_recv `arg` parameter
+                           struct udp_pcb* upcb,   // Receiving Protocol Control Block
+                           struct pbuf* p,         // Pointer to Datagram
+                           const ip_addr_t* addr,  // Address of sender
+                           u16_t port )            // Sender port
+{
+	if(p == NULL)
+			return;
+
+	printf("[handle_udp_ptp] p->len = %d\r\n", p->len);
+	// printf("[handle_udp_ptp] p->payload = %s\r\n", (char *)p->payload);
+
+	printf("[handle_udp_ptp] p->payload: ");
+
+	uint8_t *data = (uint8_t *)p->payload;
+	for (u16_t i = 0; i < p->len; i++) {
+	    printf("%02X ", data[i]);
+	}
+	printf("\r\n");
+
+	pbuf_free(p);
+
+}
+static void ptp_sync_fn(struct mg_connection *c, int ev, void *ev_data,
+		void *fn_data) {
+	if (ev == MG_EV_POLL)
+		return; // many MG_EV_READ, and MG_EV_ERROR at the end
+
+	if (ev == MG_EV_READ)
+	{
+		printf("[ptp_sync_fn] MG_EV_READ: %s , len= %d \r\n", c->recv.buf, c->recv.len);
+
+		return;
+	}
+
+	printf("[ptp_sync_fn] received event = %d , ev_data =%s \r\n", ev,
+			(char*) ev_data);
+}
 
 static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
 		void *fn_data) {
@@ -199,7 +245,6 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 				 * 	For now, we're ignoring it...
 				 */
 
-
 				printf("received PUT\r\n");
 
 				// mg_http_reply(c, 202, "Content-Type: application/json\r\n", json); // MAR: maybe check what it should be exactly
@@ -210,7 +255,6 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 //
 				mg_http_reply(c, 202, "Content-Type: application/json\r\n",
 						"{}");
-
 
 				char *str = mg_json_get_str(hm->body, "$.role");
 				if (str != NULL && strcmp(str, "secondary") == 0) {
@@ -382,10 +426,12 @@ int main(void) {
 
 	/* Create the thread(s) */
 	/* definition and creation of MongooseTask */
-// osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 256);
 	osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 512);
-	MongooseTaskHandle = osThreadCreate(osThread(MongooseTask),
-	NULL);
+	MongooseTaskHandle = osThreadCreate(osThread(MongooseTask), NULL);
+
+	/* definition and creation of HandlePTPTask */
+	osThreadDef(HandlePTPTask, StartHandlePTPTask, osPriorityHigh, 0, 256);
+	HandlePTPTaskHandle = osThreadCreate(osThread(HandlePTPTask), NULL);
 
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -517,8 +563,7 @@ static void MX_USART3_UART_Init(void) {
 	huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	huart3.Init.OverSampling = UART_OVERSAMPLING_16;
 	huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-	huart3.AdvancedInit.AdvFeatureInit =
-	UART_ADVFEATURE_NO_INIT;
+	huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
 	if (HAL_UART_Init(&huart3) != HAL_OK) {
 		Error_Handler();
 	}
@@ -551,8 +596,8 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(GPIOB, LD1_Pin | LD3_Pin | LD2_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port,
-	USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin,
+			GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : USER_Btn_Pin */
 	GPIO_InitStruct.Pin = USER_Btn_Pin;
@@ -641,7 +686,6 @@ void StartMongooseTask(void const *argument) {
 			ip4_addr3(&ip), ip4_addr4(&ip));
 	LOG(buf);
 
-
 	mdns_resp_init();
 	mdns_resp_add_netif(netif_default, "22223335", 3600);
 
@@ -663,14 +707,22 @@ void StartMongooseTask(void const *argument) {
 
 	// mg_ws_connect(&mgr, "ws://192.168.3.7:8765/", ws_client_fn, NULL, NULL);
 
+	// NOTE: theres an external udp_pcbs that maynbe works?
+	struct udp_pcb *pcb = udp_new();
+	udp_bind(pcb, IP_ADDR_ANY, 3190);
+	udp_recv(pcb, handle_udp_ptp, pcb);
+
 // Main event loop
 	for (;;) {
+        // MX_LWIP_Process() ; // maybe??
 		mg_mgr_poll(&mgr, 100);   // 10 ms polling
 
 		if (WS_READY == 1) {
 			mg_ws_connect(&mgr, ws_url, ws_client_fn, NULL,
 			NULL);
 			WS_READY = 0;
+
+			// mg_listen(&mgr, "udp://0.0.0.0:3190", ptp_sync_fn, &mgr);
 		}
 		// osDelay(1);              // Yield to other FreeRTOS tasks
 	}
@@ -678,6 +730,23 @@ void StartMongooseTask(void const *argument) {
 // mg_mgr_free(&mgr);
 
 	/* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartHandlePTPTask */
+/**
+ * @brief Function implementing the HandlePTPTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartHandlePTPTask */
+void StartHandlePTPTask(void const *argument) {
+	/* USER CODE BEGIN StartHandlePTPTask */
+
+	/* Infinite loop */
+	for (;;) {
+		osDelay(1000);
+	}
+	/* USER CODE END StartHandlePTPTask */
 }
 
 /**
