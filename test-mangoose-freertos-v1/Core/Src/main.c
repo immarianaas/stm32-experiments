@@ -35,8 +35,11 @@
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
 
-#include "data.h"
 #include "lwip/udp.h"
+
+#include "data.h"
+#include "udp_ptp.h"
+
 
 /* USER CODE END Includes */
 
@@ -129,29 +132,7 @@ int WS_READY = 0;
 char ws_url[24];
 
 
-static void handle_udp_ptp( void* arg,              // User argument - udp_recv `arg` parameter
-                           struct udp_pcb* upcb,   // Receiving Protocol Control Block
-                           struct pbuf* p,         // Pointer to Datagram
-                           const ip_addr_t* addr,  // Address of sender
-                           u16_t port )            // Sender port
-{
-	if(p == NULL)
-			return;
 
-	printf("[handle_udp_ptp] p->len = %d\r\n", p->len);
-	// printf("[handle_udp_ptp] p->payload = %s\r\n", (char *)p->payload);
-
-	printf("[handle_udp_ptp] p->payload: ");
-
-	uint8_t *data = (uint8_t *)p->payload;
-	for (u16_t i = 0; i < p->len; i++) {
-	    printf("%02X ", data[i]);
-	}
-	printf("\r\n");
-
-	pbuf_free(p);
-
-}
 static void ptp_sync_fn(struct mg_connection *c, int ev, void *ev_data,
 		void *fn_data) {
 	if (ev == MG_EV_POLL)
@@ -708,8 +689,12 @@ void StartMongooseTask(void const *argument) {
 	// mg_ws_connect(&mgr, "ws://192.168.3.7:8765/", ws_client_fn, NULL, NULL);
 
 	// NOTE: theres an external udp_pcbs that maynbe works?
+	struct udp_pcb *pcb_sync = udp_new();
+	udp_bind(pcb_sync, IP_ADDR_ANY, 3190);
+	udp_recv(pcb_sync, handle_udp_ptp_sync, pcb_sync);
+
 	struct udp_pcb *pcb = udp_new();
-	udp_bind(pcb, IP_ADDR_ANY, 3190);
+	udp_bind(pcb, IP_ADDR_ANY, 3200);
 	udp_recv(pcb, handle_udp_ptp, pcb);
 
 // Main event loop
