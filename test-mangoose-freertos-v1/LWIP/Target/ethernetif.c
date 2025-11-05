@@ -33,7 +33,7 @@
 
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
-
+#include "stm32f7xx_hal_eth.h" // MARRRR
 /* USER CODE END 0 */
 
 /* Private define ------------------------------------------------------------*/
@@ -459,6 +459,11 @@ static struct pbuf * low_level_input(struct netif *netif)
   if(RxAllocStatus == RX_ALLOC_OK)
   {
     HAL_ETH_ReadData(&heth, (void **)&p);
+
+    ETH_TimeStampTypeDef timestamp;
+    HAL_ETH_PTP_GetRxTimestamp(&heth, &timestamp);
+    // MARRRR
+    printf(">>>> Rx timestamp: high=0x%" PRIX32 ", low=0x%" PRIX32 "\n",timestamp.TimeStampHigh, timestamp.TimeStampLow);
   }
 
   return p;

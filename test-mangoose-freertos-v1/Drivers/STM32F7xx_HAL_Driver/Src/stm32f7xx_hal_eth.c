@@ -249,6 +249,10 @@
 
 /* ETHERNET DMA Rx descriptors Frame length Shift */
 #define  ETH_DMARXDESC_FRAMELENGTHSHIFT            16U
+
+
+
+#define HAL_ETH_USE_PTP 1 // MARR#
 /**
   * @}
   */
@@ -1116,10 +1120,18 @@ HAL_StatusTypeDef HAL_ETH_ReadData(ETH_HandleTypeDef *heth, void **pAppBuff)
   {
     if (READ_BIT(dmarxdesc->DESC0,  ETH_DMARXDESC_LS)  != (uint32_t)RESET)
     {
+
+    	printf("[HAL_ETH_ReadData] I'm storing timestamp info\r\n"); // MARRR
+        printf("[HAL_ETH_ReadData] high=%lu, low=%lu\r\n",(unsigned long)dmarxdesc->DESC7, (unsigned long)dmarxdesc->DESC6);
+
       /* Get timestamp high */
       heth->RxDescList.TimeStamp.TimeStampHigh = dmarxdesc->DESC7;
       /* Get timestamp low */
       heth->RxDescList.TimeStamp.TimeStampLow  = dmarxdesc->DESC6;
+    } else
+    {
+    	printf("[HAL_ETH_ReadData] I did NOT store timestamp info\r\n");
+
     }
     if ((READ_BIT(dmarxdesc->DESC0, ETH_DMARXDESC_FS) != (uint32_t)RESET) || (heth->RxDescList.pRxStart != NULL))
     {

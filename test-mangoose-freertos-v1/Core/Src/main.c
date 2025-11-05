@@ -626,6 +626,27 @@ void StartMongooseTask(void const *argument) {
 	/* init code for LWIP */
 	MX_LWIP_Init();
 
+	ETH_PTP_ConfigTypeDef ptp_config = {
+	    .Timestamp = 1,
+	    .TimestampUpdateMode = 0,
+	    .TimestampInitialize = 1,
+	    .TimestampUpdate = 0,
+	    .TimestampAddendUpdate = 0,
+	    .TimestampAll = 1,
+	    .TimestampRolloverMode = 0,
+	    .TimestampV2 = 1,
+	    .TimestampEthernet = 1,
+	    .TimestampIPv6 = 1,
+	    .TimestampIPv4 = 1,
+	    .TimestampEvent = 1,
+	    .TimestampMaster = 0,
+	    .TimestampFilter = 0,
+	    .TimestampClockType = 0,
+	    .TimestampAddend = 0,
+	    .TimestampSubsecondInc = 0
+	};
+	HAL_ETH_PTP_SetConfig(&heth, &ptp_config);
+
 	/* init code for USB_DEVICE */
 	MX_USB_DEVICE_Init();
 	/* USER CODE BEGIN 5 */
