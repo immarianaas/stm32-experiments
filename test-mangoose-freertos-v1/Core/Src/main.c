@@ -626,6 +626,10 @@ void StartMongooseTask(void const *argument) {
 	/* init code for LWIP */
 	MX_LWIP_Init();
 
+	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSE );
+	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSFCU );
+    // ETH->PTPTSCR |= ETH_PTPTSCR_TSE | ETH_PTPTSCR_TSFCU;
+
 	ETH_PTP_ConfigTypeDef ptp_config = {
 	    .Timestamp = 1,
 	    .TimestampUpdateMode = 0,

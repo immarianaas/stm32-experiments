@@ -1022,6 +1022,11 @@ HAL_StatusTypeDef HAL_ETH_Transmit(ETH_HandleTypeDef *heth, ETH_TxPacketConfigTy
       }
     }
 
+    // MARRR: timestamp
+    uint32_t milis = HAL_GetTick();
+    heth->RxDescList.TimeStamp.TimeStampHigh = milis / 1000;
+    heth->RxDescList.TimeStamp.TimeStampLow = milis % 1000;
+
     /* Return function status */
     return HAL_OK;
   }
@@ -1074,6 +1079,12 @@ HAL_StatusTypeDef HAL_ETH_Transmit_IT(ETH_HandleTypeDef *heth, ETH_TxPacketConfi
       (heth->Instance)->DMATPDR = 0U;
     }
 
+
+    // MARRR: timestamp
+    uint32_t milis = HAL_GetTick();
+    heth->RxDescList.TimeStamp.TimeStampHigh = milis / 1000;
+    heth->RxDescList.TimeStamp.TimeStampLow = milis % 1000;
+
     return HAL_OK;
 
   }
@@ -1121,13 +1132,31 @@ HAL_StatusTypeDef HAL_ETH_ReadData(ETH_HandleTypeDef *heth, void **pAppBuff)
     if (READ_BIT(dmarxdesc->DESC0,  ETH_DMARXDESC_LS)  != (uint32_t)RESET)
     {
 
-    	printf("[HAL_ETH_ReadData] I'm storing timestamp info\r\n"); // MARRR
-        printf("[HAL_ETH_ReadData] high=%lu, low=%lu\r\n",(unsigned long)dmarxdesc->DESC7, (unsigned long)dmarxdesc->DESC6);
+    	// printf("[HAL_ETH_ReadData] I'm storing timestamp info\r\n"); // MARRR
+        // printf("[HAL_ETH_ReadData] high=%lu, low=%lu\r\n",(unsigned long)dmarxdesc->DESC7, (unsigned long)dmarxdesc->DESC6);
+//        printf("[HAL_ETH_ReadData heth->Instance] high=%lu, low=%lu\r\n",(unsigned long)heth->Instance->PTPTSHUR, (unsigned long)heth->Instance->PTPTSLUR);
+//        uint32_t rx_sec  = ETH->PTPTSHUR;
+//        uint32_t rx_nsec = ETH->PTPTSLUR;
+//        printf("[HAL_ETH_ReadData ETH directly] high=%lu, low=%lu\r\n",(unsigned long)rx_sec, (unsigned long)rx_nsec);
+
+//
+//      /* Get timestamp high */
+//      heth->RxDescList.TimeStamp.TimeStampHigh = dmarxdesc->DESC7;
+//      /* Get timestamp low */
+//      heth->RxDescList.TimeStamp.TimeStampLow  = dmarxdesc->DESC6;
+        // MARRR
+//
+//        ETH_TimeTypeDef time;
+//        HAL_ETH_PTP_GetTime(heth, &time);
+
+      uint32_t milis = HAL_GetTick();
 
       /* Get timestamp high */
-      heth->RxDescList.TimeStamp.TimeStampHigh = dmarxdesc->DESC7;
+      heth->RxDescList.TimeStamp.TimeStampHigh = milis / 1000;
       /* Get timestamp low */
-      heth->RxDescList.TimeStamp.TimeStampLow  = dmarxdesc->DESC6;
+      heth->RxDescList.TimeStamp.TimeStampLow  = milis % 1000;
+
+
     } else
     {
     	printf("[HAL_ETH_ReadData] I did NOT store timestamp info\r\n");
@@ -1610,8 +1639,11 @@ HAL_StatusTypeDef HAL_ETH_PTP_SetConfig(ETH_HandleTypeDef *heth, ETH_PTP_ConfigT
 
   /* Set Seconds */
   time.Seconds = heth->Instance->PTPTSHR;
+
+
   /* Set NanoSeconds */
   time.NanoSeconds = heth->Instance->PTPTSLR;
+
 
   HAL_ETH_PTP_SetTime(heth, &time);
 
@@ -1713,6 +1745,8 @@ HAL_StatusTypeDef HAL_ETH_PTP_GetTime(ETH_HandleTypeDef *heth, ETH_TimeTypeDef *
     time->Seconds = heth->Instance->PTPTSHR;
     /* Get NanoSeconds */
     time->NanoSeconds = heth->Instance->PTPTSLR;
+
+    printf("[HAL_ETH_PTP_GetTime] seconds=%d\r\n", time->Seconds);
 
     /* Return function status */
     return HAL_OK;

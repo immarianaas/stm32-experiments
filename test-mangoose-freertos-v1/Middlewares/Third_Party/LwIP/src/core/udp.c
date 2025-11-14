@@ -594,9 +594,9 @@ udp_sendto_chksum(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip,
     return ERR_RTE;
   }
 #if LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UDP
-  return udp_sendto_if_chksum(pcb, p, dst_ip, dst_port, netif, have_chksum, chksum);
+   return udp_sendto_if_chksum(pcb, p, dst_ip, dst_port, netif, have_chksum, chksum);
 #else /* LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UDP */
-  return udp_sendto_if(pcb, p, dst_ip, dst_port, netif);
+   return udp_sendto_if(pcb, p, dst_ip, dst_port, netif);
 #endif /* LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UDP */
 }
 
