@@ -110,6 +110,10 @@ static DeltaTimeType compute_t1(struct deltatime_ts *curr, DeltaTimeType offset,
 
 }
 
+static int is_deltatime_ts_valid(struct deltatime_ts *curr)
+{
+	return (curr->t1 < curr->t4) && (curr->t2 < curr->t3);
+}
 
 static void example() {
 
