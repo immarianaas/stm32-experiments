@@ -82,7 +82,7 @@ main-build: test-mangoose-freertos-v1.elf secondary-outputs
 
 # Tool invocations
 test-mangoose-freertos-v1.elf test-mangoose-freertos-v1.map: $(OBJS) $(USER_OBJS) /home/mar/STM32CubeIDE/workspace_1.19.0/test-mangoose-freertos-v1/STM32F767ZITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "test-mangoose-freertos-v1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/home/mar/STM32CubeIDE/workspace_1.19.0/test-mangoose-freertos-v1/STM32F767ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="test-mangoose-freertos-v1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "test-mangoose-freertos-v1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/home/mar/STM32CubeIDE/workspace_1.19.0/test-mangoose-freertos-v1/STM32F767ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="test-mangoose-freertos-v1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
