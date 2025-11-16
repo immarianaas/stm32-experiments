@@ -20,6 +20,25 @@ struct deltatime_ts {
 };
 
 
+static void print_deltatime_ts(struct deltatime_ts *dt_ts)
+{
+	int32_t seconds = (int32_t) (dt_ts->t1/ NANO);
+	int32_t nanoseconds = (int32_t) (dt_ts->t1 % NANO);
+	printf("t1: %" PRId32 ".%09" PRId32 "\r\n", seconds, nanoseconds);
+
+	seconds = (int32_t) (dt_ts->t2/ NANO);
+	nanoseconds = (int32_t) (dt_ts->t2 % NANO);
+	printf("t2: %" PRId32 ".%09" PRId32 "\r\n", seconds, nanoseconds);
+
+	seconds = (int32_t) (dt_ts->t3/ NANO);
+	nanoseconds = (int32_t) (dt_ts->t3 % NANO);
+	printf("t3: %" PRId32 ".%09" PRId32 "\r\n", seconds, nanoseconds);
+
+	seconds = (int32_t) (dt_ts->t4/ NANO);
+	nanoseconds = (int32_t) (dt_ts->t4 % NANO);
+	printf("t4: %" PRId32 ".%09" PRId32 "\r\n", seconds, nanoseconds);
+
+}
 static void print_deltatime(DeltaTimeType value, char *add_str) {
 
 	char sign = (value < 0) ? '-' : '+';
@@ -31,6 +50,27 @@ static void print_deltatime(DeltaTimeType value, char *add_str) {
 	printf("%s: deltatime = %c%" PRId32 ".%09" PRId32 "\r\n", add_str, sign, seconds, nanoseconds);
 }
 
+
+static DeltaTimeType toDeltaTimeType(ETH_TimeStampTypeDef *a) {
+	return (DeltaTimeType) ((uint64_t) a->TimeStampHigh * 1000000000)
+			+ (uint64_t) a->TimeStampLow;
+}
+
+struct ts {
+	ETH_TimeStampTypeDef t1;
+	ETH_TimeStampTypeDef t2;
+	ETH_TimeStampTypeDef t3;
+	ETH_TimeStampTypeDef t4;
+};
+
+
+static void convert_ts_to_deltatime_ts(struct ts* timestamp, struct deltatime_ts *dt_timestamp)
+{
+	dt_timestamp->t1 = toDeltaTimeType(&timestamp->t1);
+	dt_timestamp->t2 = toDeltaTimeType(&timestamp->t2);
+	dt_timestamp->t3 = toDeltaTimeType(&timestamp->t3);
+	dt_timestamp->t4 = toDeltaTimeType(&timestamp->t4);
+}
 
 
 static double compute_skew_deltatime(struct deltatime_ts *curr, struct deltatime_ts *prev)
@@ -63,6 +103,13 @@ static DeltaTimeType compute_offset_website_deltatime(struct deltatime_ts *curr)
 
 }
 
+static DeltaTimeType compute_t1(struct deltatime_ts *curr, DeltaTimeType offset, DeltaTimeType pathdelay)
+{
+	DeltaTimeType calc_t1 = curr->t2 - offset - pathdelay;
+	return calc_t1;
+
+}
+
 
 static void example() {
 
@@ -92,6 +139,34 @@ static void example() {
 
 	DeltaTimeType offset_website = compute_offset_website_deltatime(&ts_curr);
 	print_deltatime(offset_website, "[New example]: offset website");
+
+}
+
+static void compute_all_metrics(struct deltatime_ts *ts_curr, struct deltatime_ts *ts_prev)
+{
+
+
+	print_deltatime_ts(ts_curr);
+	print_deltatime_ts(ts_prev);
+
+	double skew = compute_skew_deltatime(ts_curr, ts_prev);
+	printf("[compute_all_metrics]: skew = %f\r\n", skew);
+
+	DeltaTimeType pathdelay = compute_pathdelay_deltatime(ts_curr, skew);
+	print_deltatime(pathdelay, "[compute_all_metrics]: pathdelay");
+
+	DeltaTimeType offset_Henrik = compute_offset_Henrik_deltatime(ts_curr, pathdelay);
+
+	print_deltatime(offset_Henrik, "[compute_all_metrics]: offset Henrik");
+
+	DeltaTimeType offset_website = compute_offset_website_deltatime(ts_curr);
+	print_deltatime(offset_website, "[compute_all_metrics]: offset website");
+
+	DeltaTimeType c_t1 = compute_t1(ts_curr, offset_Henrik, pathdelay);
+	print_deltatime(c_t1, "[... henrik]: c_t1");
+
+	c_t1 = compute_t1(ts_curr, offset_website, pathdelay);
+	print_deltatime(c_t1, "[... website]: c_t1");
 
 }
 

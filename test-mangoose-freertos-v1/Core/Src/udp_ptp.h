@@ -33,15 +33,19 @@ typedef struct {
 	uint32_t nanoseconds;
 } timeTypeDef;
 
-struct ts {
-	ETH_TimeStampTypeDef t1;
-	ETH_TimeStampTypeDef t2;
-	ETH_TimeStampTypeDef t3;
-	ETH_TimeStampTypeDef t4;
-};
+//struct ts {
+//	ETH_TimeStampTypeDef t1;
+//	ETH_TimeStampTypeDef t2;
+//	ETH_TimeStampTypeDef t3;
+//	ETH_TimeStampTypeDef t4;
+//};
 
 struct ts ptp_ts;
 struct ts *prev_ptp_ts = NULL;
+
+
+struct deltatime_ts ptp_dt_ts;
+struct deltatime_ts *prev_ptp_dt_ts = NULL;
 
 static int compare_ETH_TimeStamps(ETH_TimeStampTypeDef *t1,
 		ETH_TimeStampTypeDef *t2) {
@@ -129,8 +133,7 @@ static ETH_TimeStampTypeDef divide(ETH_TimeStampTypeDef *a,
 	return res;
 }
 
-static double divide64(ETH_TimeStampTypeDef *a,
-		ETH_TimeStampTypeDef *b) {
+static double divide64(ETH_TimeStampTypeDef *a, ETH_TimeStampTypeDef *b) {
 	uint64_t a_64 = to_uint64(a);
 	uint64_t b_64 = to_uint64(b);
 
@@ -199,16 +202,14 @@ static ETH_TimeStampTypeDef multiply_scalar(ETH_TimeStampTypeDef *a,
 	return res;
 }
 
-
-static double compute_skew(struct ts *curr, struct ts *prev)
-{
+static double compute_skew(struct ts *curr, struct ts *prev) {
 	ETH_TimeStampTypeDef t2_diff = sub(&curr->t2, &prev->t2);
 	ETH_TimeStampTypeDef t1_diff = sub(&curr->t1, &prev->t1);
 	return divide64(&t2_diff, &t1_diff);
 }
 
-static ETH_TimeStampTypeDef compute_path_delay(struct ts *curr, struct ts *prev, double skew_double)
-{
+static ETH_TimeStampTypeDef compute_path_delay(struct ts *curr, struct ts *prev,
+		double skew_double) {
 	ETH_TimeStampTypeDef t1_x_skew = multiply_scalar(&curr->t1, skew_double);
 	ETH_TimeStampTypeDef t4_x_skew = multiply_scalar(&curr->t4, skew_double);
 
@@ -216,29 +217,25 @@ static ETH_TimeStampTypeDef compute_path_delay(struct ts *curr, struct ts *prev,
 	int is_sec_faster_t3 = compare_ETH_TimeStamps(&curr->t3, &t4_x_skew);
 
 	// I believe these two should have the same result
-	if (is_sec_faster_t2  != is_sec_faster_t3 )
-	{
+	if (is_sec_faster_t2 != is_sec_faster_t3) {
 		printf("I think this is wrong..\r\n");
 	}
 
 	ETH_TimeStampTypeDef pathdelay_sum;
 
-	if (is_sec_faster_t2 == 1)
-	{
+	if (is_sec_faster_t2 == 1) {
 		ETH_TimeStampTypeDef t2_sub_t1 = sub(&curr->t2, &t1_x_skew);
 		ETH_TimeStampTypeDef t3_sub_t4 = sub(&curr->t3, &t4_x_skew); // invert to get positive!
 		pathdelay_sum = sub(&t2_sub_t1, &t3_sub_t4);
 	}
 
-	if (is_sec_faster_t2 == -1)
-	{
-		ETH_TimeStampTypeDef t1_sub_t2 = sub(&t1_x_skew, &curr->t2);  // invert to get positive!
+	if (is_sec_faster_t2 == -1) {
+		ETH_TimeStampTypeDef t1_sub_t2 = sub(&t1_x_skew, &curr->t2); // invert to get positive!
 		ETH_TimeStampTypeDef t4_sub_t3 = sub(&t4_x_skew, &curr->t3);
 		pathdelay_sum = sub(&t4_sub_t3, &t1_sub_t2);
 	}
 
-	if (is_sec_faster_t2 == 0)
-	{
+	if (is_sec_faster_t2 == 0) {
 		printf("TODO: handle here \r\n");
 	}
 
@@ -292,6 +289,9 @@ static void handle_end_ptp_exchange() {
 
 		prev_ptp_ts = malloc(sizeof(struct ts));
 		*prev_ptp_ts = ptp_ts;
+
+		prev_ptp_dt_ts = malloc(sizeof(struct deltatime_ts));
+		*prev_ptp_dt_ts = ptp_dt_ts;
 		return;
 	}
 
@@ -345,6 +345,10 @@ static void handle_end_ptp_exchange() {
 	//			t1_diff.TimeStampLow);
 
 	// uint32_t pathdelay = (ptp_ts.t2 - ptp_ts.prev.t2) / (ptp_ts.t1 - ptp_ts.prev.t1);
+
+	convert_ts_to_deltatime_ts(&ptp_ts, &ptp_dt_ts);
+	convert_ts_to_deltatime_ts(prev_ptp_ts, prev_ptp_dt_ts);
+	compute_all_metrics(&ptp_dt_ts, prev_ptp_dt_ts);
 
 	*prev_ptp_ts = ptp_ts;
 }
@@ -443,31 +447,33 @@ static void handle_udp_ptp_sync(void *arg, // User argument - udp_recv `arg` par
 
 	pbuf_free(p);
 
-	ETH_TimeStampTypeDef prev_t1 = { .TimeStampHigh = 9, .TimeStampLow = 0 };
-	ETH_TimeStampTypeDef prev_t2 = { .TimeStampHigh = 9, .TimeStampLow = 11 };
-	ETH_TimeStampTypeDef prev_t3 = { .TimeStampHigh = 9, .TimeStampLow = 12 };
-	ETH_TimeStampTypeDef prev_t4 = { .TimeStampHigh = 9, .TimeStampLow = 03 };
+	// test here
 
-	ETH_TimeStampTypeDef curr_t1 = { .TimeStampHigh = 9, .TimeStampLow = 8 };
-	ETH_TimeStampTypeDef curr_t2 = { .TimeStampHigh = 9, .TimeStampLow = 19 };
-	ETH_TimeStampTypeDef curr_t3 = { .TimeStampHigh = 9, .TimeStampLow = 20 };
-	ETH_TimeStampTypeDef curr_t4 = { .TimeStampHigh = 9, .TimeStampLow = 11 };
+//	ETH_TimeStampTypeDef prev_t1 = { .TimeStampHigh = 9, .TimeStampLow = 0 };
+//	ETH_TimeStampTypeDef prev_t2 = { .TimeStampHigh = 9, .TimeStampLow = 11 };
+//	ETH_TimeStampTypeDef prev_t3 = { .TimeStampHigh = 9, .TimeStampLow = 12 };
+//	ETH_TimeStampTypeDef prev_t4 = { .TimeStampHigh = 9, .TimeStampLow = 03 };
+//
+//	ETH_TimeStampTypeDef curr_t1 = { .TimeStampHigh = 9, .TimeStampLow = 8 };
+//	ETH_TimeStampTypeDef curr_t2 = { .TimeStampHigh = 9, .TimeStampLow = 19 };
+//	ETH_TimeStampTypeDef curr_t3 = { .TimeStampHigh = 9, .TimeStampLow = 20 };
+//	ETH_TimeStampTypeDef curr_t4 = { .TimeStampHigh = 9, .TimeStampLow = 11 };
+//
+//	struct ts curr_test_ts;
+//	curr_test_ts.t1 = curr_t1;
+//	curr_test_ts.t2 = curr_t2;
+//	curr_test_ts.t3 = curr_t3;
+//	curr_test_ts.t4 = curr_t4;
+//
+//	struct ts prev_test_ts;
+//	prev_test_ts.t1 = prev_t1;
+//	prev_test_ts.t2 = prev_t2;
+//	prev_test_ts.t3 = prev_t3;
+//	prev_test_ts.t4 = prev_t4;
 
-	struct ts curr_test_ts;
-	curr_test_ts.t1 = curr_t1;
-	curr_test_ts.t2 = curr_t2;
-	curr_test_ts.t3 = curr_t3;
-	curr_test_ts.t4 = curr_t4;
-
-	struct ts prev_test_ts;
-	prev_test_ts.t1 = prev_t1;
-	prev_test_ts.t2 = prev_t2;
-	prev_test_ts.t3 = prev_t3;
-	prev_test_ts.t4 = prev_t4;
-
-	compute_metrics(&curr_test_ts, &prev_test_ts);
-
-	example();
+//	compute_metrics(&curr_test_ts, &prev_test_ts);
+//
+//	example();
 
 }
 
