@@ -52,24 +52,8 @@ static void print_deltatime(DeltaTimeType value, char *add_str) {
 
 
 static DeltaTimeType toDeltaTimeType(ETH_TimeStampTypeDef *a) {
-	return (DeltaTimeType) ((uint64_t) a->TimeStampHigh * 1000000000)
+	return (DeltaTimeType) ((uint64_t) a->TimeStampHigh * NANO)
 			+ (uint64_t) a->TimeStampLow;
-}
-
-struct ts {
-	ETH_TimeStampTypeDef t1;
-	ETH_TimeStampTypeDef t2;
-	ETH_TimeStampTypeDef t3;
-	ETH_TimeStampTypeDef t4;
-};
-
-
-static void convert_ts_to_deltatime_ts(struct ts* timestamp, struct deltatime_ts *dt_timestamp)
-{
-	dt_timestamp->t1 = toDeltaTimeType(&timestamp->t1);
-	dt_timestamp->t2 = toDeltaTimeType(&timestamp->t2);
-	dt_timestamp->t3 = toDeltaTimeType(&timestamp->t3);
-	dt_timestamp->t4 = toDeltaTimeType(&timestamp->t4);
 }
 
 
@@ -116,7 +100,7 @@ static int is_deltatime_ts_valid(struct deltatime_ts *curr)
 }
 
 static void example() {
-
+	/** TESTING ONLY **/
 	struct deltatime_ts ts_prev = {
 			.t1 = NANO * 9.0,
 			.t2 = NANO * 9.11,

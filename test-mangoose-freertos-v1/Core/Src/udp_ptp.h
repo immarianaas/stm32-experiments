@@ -25,6 +25,7 @@ static uint8_t ptp_delay_req_payload[] = { 0x01, 0x02, 0x00, 0x2C, 0x00, 0x00,
 struct deltatime_ts ptp_ts;
 struct deltatime_ts *prev_ptp_ts = NULL;
 
+static uint16_t seqId;
 
 static void handle_end_ptp_exchange() {
 	if (prev_ptp_ts == NULL) {
@@ -68,16 +69,16 @@ static void print_payload(uint8_t *data, int len) {
 
 static void send_delay_req(struct udp_pcb *upcb, const ip_addr_t *addr,
 		u16_t port) {
-	// update sequenceId which is 2 bytes and starts in index 30
-	uint16_t sequenceId = 3;
-	ptp_delay_req_payload[30] = (uint8_t) (sequenceId & 0xff00) >> 8;
-	ptp_delay_req_payload[31] = (uint8_t) (sequenceId & 0x00ff);
+	// TODO: update sequenceId which is 2 bytes and starts in index 30
+	// uint16_t sequenceId = 3;
+	ptp_delay_req_payload[30] = (uint8_t) ((seqId & 0xff00) >> 8);
+	ptp_delay_req_payload[31] = (uint8_t) (seqId & 0x00ff);
 
 	struct pbuf *send_p = pbuf_alloc(PBUF_TRANSPORT,
 			sizeof(ptp_delay_req_payload), PBUF_RAM);
 
 
-	osDelay(1000); // TODO: check this
+	// osDelay(1000); // TODO: MARRR check this
 
 	//TickType_t xDelay = 5000 / portTICK_PERIOD_MS;
 	//vTaskDelay(xDelay);
@@ -109,6 +110,8 @@ static void handle_udp_ptp_sync(void *arg, // User argument - udp_recv `arg` par
 
 		/* --- SAVING T2 --- */
 		ptp_ts.t2 = toDeltaTimeType(&p->timestamp);
+		seqId = ((uint16_t)data[29] << 8) | (uint16_t)data[30];
+		// printf("SYNC seqId=%d, (uint16_t)data[30]<<8 = %d, (uint16_t)data[31] = %d\r\n", seqId, ((uint16_t)data[30] <<8), (uint16_t)data[31]);
 		print_deltatime(ptp_ts.t2,
 				"[handle_udp_ptp_sync] received SYNC ((t2))");
 	}

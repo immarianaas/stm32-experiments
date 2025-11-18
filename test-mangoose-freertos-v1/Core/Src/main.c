@@ -256,7 +256,7 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 
 			// *** GET ***
 			else if (mg_match(hm->method, mg_str("GET"), NULL)) {
-				printf(">>> GETShould not be called... \r\n");
+				// TODO: handle primary ID dynamically!!
 				mg_http_reply(c, 200, "Content-Type: application/json\r\n",
 						"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
 				return;
