@@ -110,43 +110,28 @@ struct mg_mgr mgr;
 int WS_READY = 0;
 char ws_url[32];
 
-static void ptp_sync_fn(struct mg_connection *c, int ev, void *ev_data,
-		void *fn_data) {
-	if (ev == MG_EV_POLL)
-		return; // many MG_EV_READ, and MG_EV_ERROR at the end
-
-	if (ev == MG_EV_READ) {
-		printf("[ptp_sync_fn] MG_EV_READ: %s , len= %d \r\n", c->recv.buf,
-				c->recv.len);
-
-		return;
-	}
-
-	printf("[ptp_sync_fn] received event = %d , ev_data =%s \r\n", ev,
-			(char*) ev_data);
-}
 
 static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
 		void *fn_data) {
 	switch (ev) {
 	case MG_EV_WS_OPEN:
-		printf("WS connected, strlen=%d, strlen2=%d\r\n",
+		printf("[old ws] WS connected, strlen=%d, strlen2=%d\r\n",
 				strlen(WEBSOCKETS_CONNECT_DATA),
 				strlen("Hello from STM32 WS client!"));
 		// mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
 		size_t sent = mg_ws_send(c, WEBSOCKETS_CONNECT_DATA,
 				strlen(WEBSOCKETS_CONNECT_DATA), WEBSOCKET_OP_TEXT);
-		printf("sent=%d\r\n", sent);
+		printf("[old ws] sent=%d\r\n", sent);
 		break;
 
 	case MG_EV_WS_MSG:
-		printf("MG_EV_WS_MSG");
+		printf("[old ws] MG_EV_WS_MSG");
 		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
-		printf("WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
+		printf("[old ws] WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
 		break;
 
 	case MG_EV_CLOSE:
-		printf("WS connection closed\n");
+		printf("[old ws] WS connection closed\n");
 		break;
 	}
 
@@ -218,8 +203,11 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 					// Build WebSocket URL
 					// char ws_url[24];
 					snprintf(ws_url, sizeof(ws_url), "ws://%s:8999", ip_buf);// Assuming server listens on /ws
-					printf("Connecting to %s\r\n", ws_url);
+					printf("Upgrading to %s\r\n", ws_url);
 					WS_READY = 1;
+
+					// does not work if we have to change ports!
+					//mg_ws_upgrade(c, hm, NULL);
 				}
 
 				return;
@@ -240,8 +228,33 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 	case MG_EV_POLL:
 		break;
 	case MG_EV_CLOSE:
-		mg_close_conn(c);
+		printf("MG_EV_CLOSE connection closed\n");
+		// mg_close_conn(c);
 		break;
+
+
+
+	// --- from the WS function ---
+	case MG_EV_WS_OPEN:
+		printf("WS connected, strlen=%d, strlen2=%d\r\n",
+				strlen(WEBSOCKETS_CONNECT_DATA),
+				strlen("Hello from STM32 WS client!"));
+		// mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
+		size_t sent = mg_ws_send(c, WEBSOCKETS_CONNECT_DATA,
+				strlen(WEBSOCKETS_CONNECT_DATA), WEBSOCKET_OP_TEXT);
+		printf("sent=%d\r\n", sent);
+		break;
+
+	case MG_EV_WS_MSG:
+		printf("MG_EV_WS_MSG");
+		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
+		printf("WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
+		break;
+//
+//	case MG_EV_CLOSE:
+//		printf("WS connection closed\n");
+//		break;
+	// --- from the WS function ---
 
 	default:
 		printf("[http handler] none of the above, event=%d\r\n", ev);
