@@ -110,7 +110,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Middlewares/Third_Party/LwIP/src/include/lwip/apps/mdns.h \
  ../Middlewares/Third_Party/LwIP/src/include/lwip/apps/mdns_opts.h \
  ../Middlewares/Third_Party/LwIP/src/include/lwip/netdb.h \
- ../Core/Src/data.h ../Core/Src/udp_ptp.h ../Core/Src/ptp_comp.h
+ ../Core/Src/data.h ../Core/Src/udp_ptp.h ../Core/Src/ptp_comp.h \
+ ../Core/Src/udp_rtp.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h:
 ../Core/Inc/stm32f7xx_hal_conf.h:
@@ -226,3 +227,4 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Src/data.h:
 ../Core/Src/udp_ptp.h:
 ../Core/Src/ptp_comp.h:
+../Core/Src/udp_rtp.h:

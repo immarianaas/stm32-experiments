@@ -39,7 +39,7 @@
 
 #include "data.h"
 #include "udp_ptp.h"
-
+#include "udp_rtp.h"
 
 /* USER CODE END Includes */
 
@@ -105,42 +105,19 @@ void usb_printf(const char *fmt, ...) {
 
 #define LOG(msg)  usb_printf("%s\r\n", msg);
 
-//static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
-//		void *fn_data) {
-//	switch (ev) {
-//	case MG_EV_WS_OPEN:
-//		printf("WS connected to %s\n", c->peer);
-//		mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
-//		break;
-//
-//	case MG_EV_WS_MSG: {
-//		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
-//		printf("WS message: %.*s\n", (int) wm->data.len, wm->data.ptr);
-//		break;
-//	}
-//
-//	case MG_EV_CLOSE:
-//		printf("WS connection closed\n");
-//		break;
-//	}
-//}
-
 struct mg_mgr mgr;
-// extern struct udp_pcb *udp_pcbs;
 
 int WS_READY = 0;
-char ws_url[24];
-
-
+char ws_url[32];
 
 static void ptp_sync_fn(struct mg_connection *c, int ev, void *ev_data,
 		void *fn_data) {
 	if (ev == MG_EV_POLL)
 		return; // many MG_EV_READ, and MG_EV_ERROR at the end
 
-	if (ev == MG_EV_READ)
-	{
-		printf("[ptp_sync_fn] MG_EV_READ: %s , len= %d \r\n", c->recv.buf, c->recv.len);
+	if (ev == MG_EV_READ) {
+		printf("[ptp_sync_fn] MG_EV_READ: %s , len= %d \r\n", c->recv.buf,
+				c->recv.len);
 
 		return;
 	}
@@ -228,12 +205,6 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 
 				printf("received PUT\r\n");
 
-				// mg_http_reply(c, 202, "Content-Type: application/json\r\n", json); // MAR: maybe check what it should be exactly
-//
-//				mg_http_reply(c, 202, "Content-Type: application/json\r\n",
-//						"{%m:%m, %m:%m}\n", MG_ESC("status"), MG_ESC("ok"),
-//						MG_ESC("received"), MG_ESC(hm->body.buf));
-//
 				mg_http_reply(c, 202, "Content-Type: application/json\r\n",
 						"{}");
 
@@ -260,52 +231,16 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 				mg_http_reply(c, 200, "Content-Type: application/json\r\n",
 						"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
 				return;
-//				// Extract the client's IP (remote address)
-//				char ip_buf[16];
-//				mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip, &c->rem);
-//				printf("Connected to client IP: %s\r\n", ip_buf);
-//
-//				// Build WebSocket URL
-//				// char ws_url[24];
-//				snprintf(ws_url, sizeof(ws_url), "ws://%s:8999", ip_buf);// Assuming server listens on /ws
-//				printf("Connecting to %s\r\n", ws_url);
-//				WS_READY = 1;
-
-				return;
 
 			}
 		}
 
-//						char *str = mg_json_get_str(hm->body, "$.role");
-//						if (str != NULL) {	// *** PUT ***
-//							// maybe can be improved to check if it is an actual PUT
-//
-//							/**
-//							 * Expecting JSON object such as:
-//							 * {
-//							 * 	"channel": "any",
-//							 * 	"hints": {...},
-//							 * 	"operationCounter": 1,
-//							 * 	"primary": "36956626",
-//							 * 	"role": "secondary",
-//							 * 	"serialNumber": "36956544"
-//							 * 	}
-//							 * 	For now, we're ignoring it...
-//							 */
-//							mg_free(str);
-//							mg_http_reply(c, 200,
-//									"Content-Type: text/plain\r\n", "ok\n"); // MAR: maybe check what it should be exactly
-//							return;
-//						}
-//						// *** GET ***
-//						mg_http_reply(c, 200,
-//								"Content-Type: application/json\r\n",
-//								"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
-
 //			// ------------------- start ws -------------------
 
 	case MG_EV_POLL:
+		break;
 	case MG_EV_CLOSE:
+		mg_close_conn(c);
 		break;
 
 	default:
@@ -314,44 +249,6 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 	}
 
 }
-
-//	static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
-//		if (ev != MG_EV_POLL)
-//			printf("[http handler] event = %d\r\n", ev);
-//
-//		if (ev == MG_EV_HTTP_MSG) {
-//			struct mg_http_message *hm = (struct mg_http_message*) ev_data;
-//
-//			// Convert URI to C string (not null-terminated)
-//			char path[64];
-//			int len =
-//					(hm->uri.len < sizeof(path) - 1) ?
-//							hm->uri.len : sizeof(path) - 1;
-//			memcpy(path, hm->uri.buf, len);
-//			path[len] = '\0';
-//
-//			// Simple routing
-//			if (strcmp(path, "/") == 0) {
-//				mg_http_reply(c, 200, "Content-Type: text/plain\r\n",
-//						"Home page!\n");
-//			} else {
-//				mg_http_reply(c, 404, "Content-Type: text/plain\r\n",
-//						"Not found\n");
-//			}
-//		}
-//		if (ev == MG_EV_ERROR) {
-//			char *err_str = (char*) ev_data;
-//			if (err_str) {
-//				usb_printf("HTTP ERROR: %s\r\n", err_str);
-//			} else {
-//				usb_printf("HTTP ERROR: Unknown\r\n");
-//			}
-//		}
-//
-//		if (ev != MG_EV_POLL)
-//			printf("[http handler] event = %d finished\r\n", ev);
-
-//	}
 
 /* USER CODE END 0 */
 
@@ -407,13 +304,13 @@ int main(void) {
 
 	/* Create the thread(s) */
 	/* definition and creation of MongooseTask */
+	// osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 512);
 	osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 512);
 	MongooseTaskHandle = osThreadCreate(osThread(MongooseTask), NULL);
 
 	/* definition and creation of HandlePTPTask */
-	osThreadDef(HandlePTPTask, StartHandlePTPTask, osPriorityHigh, 0, 256);
-	HandlePTPTaskHandle = osThreadCreate(osThread(HandlePTPTask), NULL);
-
+//	osThreadDef(HandlePTPTask, StartHandlePTPTask, osPriorityHigh, 0, 256);
+//	HandlePTPTaskHandle = osThreadCreate(osThread(HandlePTPTask), NULL);
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
 	/* USER CODE END RTOS_THREADS */
@@ -613,6 +510,26 @@ static void MX_GPIO_Init(void) {
 
 /* USER CODE BEGIN 4 */
 
+void add_txt_mdns(struct mdns_service *service, void *txt_userdata) {
+	mdns_resp_add_service_txtitem(service, "hn=Beosound-2-3rd-Gen-22223335",
+			strlen("hn=Beosound-2-3rd-Gen-22223335"));
+	// office:
+	// mdns_resp_add_service_txtitem(service, "ip=192.168.10.127",
+	// 		strlen("ip=192.168.10.127"));
+
+	// home:
+	mdns_resp_add_service_txtitem(service, "ip=192.168.3.39",
+			strlen("ip=192.168.3.39"));
+	mdns_resp_add_service_txtitem(service, "nt=e", 4);
+	mdns_resp_add_service_txtitem(service, "pn=Beosound 2 3rd gen-22223335",
+			strlen("pn=Beosound 2 3rd gen-22223335"));
+	mdns_resp_add_service_txtitem(service, "pp=0", 4);
+	mdns_resp_add_service_txtitem(service, "pv=1.0.0", 8);
+	mdns_resp_add_service_txtitem(service, "sn=22223335", 11);
+	mdns_resp_add_service_txtitem(service, "tn=3150", 7); // if theres strlen it's without the \0 (according to Anas)
+
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartMongooseTask */
@@ -626,29 +543,18 @@ void StartMongooseTask(void const *argument) {
 	/* init code for LWIP */
 	MX_LWIP_Init();
 
-	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSE );
-	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSFCU );
-    // ETH->PTPTSCR |= ETH_PTPTSCR_TSE | ETH_PTPTSCR_TSFCU;
+	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSE);
+	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSFCU);
+	// ETH->PTPTSCR |= ETH_PTPTSCR_TSE | ETH_PTPTSCR_TSFCU;
 
-	ETH_PTP_ConfigTypeDef ptp_config = {
-	    .Timestamp = 1,
-	    .TimestampUpdateMode = 0,
-	    .TimestampInitialize = 1,
-	    .TimestampUpdate = 0,
-	    .TimestampAddendUpdate = 0,
-	    .TimestampAll = 1,
-	    .TimestampRolloverMode = 0,
-	    .TimestampV2 = 1,
-	    .TimestampEthernet = 1,
-	    .TimestampIPv6 = 1,
-	    .TimestampIPv4 = 1,
-	    .TimestampEvent = 1,
-	    .TimestampMaster = 0,
-	    .TimestampFilter = 0,
-	    .TimestampClockType = 0,
-	    .TimestampAddend = 0,
-	    .TimestampSubsecondInc = 0
-	};
+	ETH_PTP_ConfigTypeDef ptp_config = { .Timestamp = 1, .TimestampUpdateMode =
+			0, .TimestampInitialize = 1, .TimestampUpdate = 0,
+			.TimestampAddendUpdate = 0, .TimestampAll = 1,
+			.TimestampRolloverMode = 0, .TimestampV2 = 1,
+			.TimestampEthernet = 1, .TimestampIPv6 = 1, .TimestampIPv4 = 1,
+			.TimestampEvent = 1, .TimestampMaster = 0, .TimestampFilter = 0,
+			.TimestampClockType = 0, .TimestampAddend = 0,
+			.TimestampSubsecondInc = 0 };
 	HAL_ETH_PTP_SetConfig(&heth, &ptp_config);
 
 	/* init code for USB_DEVICE */
@@ -666,12 +572,6 @@ void StartMongooseTask(void const *argument) {
 		osDelay(100);
 		// LOG("inside while");
 	}
-
-//	char buf[64];
-//	ip4_addr_t ip = *netif_ip4_addr(netif_default);
-//	sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
-//			ip4_addr3(&ip), ip4_addr4(&ip));
-//	LOG(buf);
 
 	char buf[64];
 	ip4_addr_t ip = *netif_ip4_addr(netif_default);
@@ -695,8 +595,13 @@ void StartMongooseTask(void const *argument) {
 	mdns_resp_init();
 	mdns_resp_add_netif(netif_default, "22223335", 3600);
 
+	// prev
+//	mdns_resp_add_service(netif_default, "22223335", "_speakerlink",
+//			DNSSD_PROTO_TCP, 80, 3600, add_txt_mdns,
+//			NULL);
+
 	mdns_resp_add_service(netif_default, "22223335", "_speakerlink",
-			DNSSD_PROTO_TCP, 80, 3600, NULL,
+			DNSSD_PROTO_TCP, 8999, 3600, add_txt_mdns,
 			NULL);
 
 	mdns_resp_announce(netif_default); // actively broadcast the service
@@ -704,16 +609,13 @@ void StartMongooseTask(void const *argument) {
 
 // --------------- mongoose ---------------
 
-	mg_log_set(MG_LL_ERROR); //change to DEBUG for debug
-// mg_log_set_fn(NULL, NULL);
+	mg_log_set(MG_LL_DEBUG); //change to DEBUG for debug
+	// mg_log_set_fn(NULL, NULL);
 
 	mg_mgr_init(&mgr);
 
 	mg_http_listen(&mgr, "http://0.0.0.0:80", http_fn, &mgr);
 
-	// mg_ws_connect(&mgr, "ws://192.168.3.7:8765/", ws_client_fn, NULL, NULL);
-
-	// NOTE: theres an external udp_pcbs that maynbe works?
 	struct udp_pcb *pcb_sync = udp_new();
 	udp_bind(pcb_sync, IP_ADDR_ANY, 3190);
 	udp_recv(pcb_sync, handle_udp_ptp_sync, pcb_sync);
@@ -722,18 +624,32 @@ void StartMongooseTask(void const *argument) {
 	udp_bind(pcb, IP_ADDR_ANY, 3200);
 	udp_recv(pcb, handle_udp_ptp, pcb);
 
+	struct udp_pcb *pcb_rtp = udp_new();
+	udp_bind(pcb_rtp, IP_ADDR_ANY, 10020);
+	udp_recv(pcb_rtp, handle_udp_rtp, pcb_rtp);
+
+	int count = 0;
 // Main event loop
 	for (;;) {
-        // MX_LWIP_Process() ; // maybe??
-		mg_mgr_poll(&mgr, 100);   // 10 ms polling
+		// MX_LWIP_Process() ; // maybe??
+		mg_mgr_poll(&mgr, 100);   // 100 ms polling
 
 		if (WS_READY == 1) {
 			mg_ws_connect(&mgr, ws_url, ws_client_fn, NULL,
 			NULL);
 			WS_READY = 0;
 
-			// mg_listen(&mgr, "udp://0.0.0.0:3190", ptp_sync_fn, &mgr);
 		}
+		if (count++ > 100)
+		{
+			mdns_resp_announce(netif_default); // actively broadcast the service
+			count = 0;
+
+		}
+
+
+
+
 		// osDelay(1);              // Yield to other FreeRTOS tasks
 	}
 
