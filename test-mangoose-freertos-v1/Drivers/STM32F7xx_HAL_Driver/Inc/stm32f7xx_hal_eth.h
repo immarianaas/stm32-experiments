@@ -27,6 +27,9 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal_def.h"
 
+#define HAL_ETH_USE_PTP 1 // MARRR
+#define ETH_PTP_Config_Status 1
+
 #if defined(ETH)
 
 /** @addtogroup STM32F7xx_HAL_Driver
