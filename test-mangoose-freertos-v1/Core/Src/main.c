@@ -35,6 +35,7 @@
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
 
+#include "data.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -125,8 +126,13 @@ static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
 		void *fn_data) {
 	switch (ev) {
 	case MG_EV_WS_OPEN:
-		printf("WS connected.");
-		mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
+		printf("WS connected, strlen=%d, strlen2=%d\r\n",
+				strlen(WEBSOCKETS_CONNECT_DATA),
+				strlen("Hello from STM32 WS client!"));
+		// mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
+		size_t sent = mg_ws_send(c, WEBSOCKETS_CONNECT_DATA,
+				strlen(WEBSOCKETS_CONNECT_DATA), WEBSOCKET_OP_TEXT);
+		printf("sent=%d\r\n", sent);
 		break;
 
 	case MG_EV_WS_MSG:
@@ -140,8 +146,9 @@ static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
 		break;
 	}
 
-	if (ev != MG_EV_POLL)
-		printf("[ws_client_fn] event = %d finished, ev_data =%s \r\n", ev, (char*) ev_data);
+//	if (ev != MG_EV_POLL)
+//		printf("[ws_client_fn] event = %d finished, ev_data =%s \r\n", ev,
+//				(char*) ev_data);
 
 }
 
@@ -174,9 +181,6 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 
 		struct mg_http_message *hm = (struct mg_http_message*) ev_data;
 
-		// printf(">>> MG_EV_HTTP_MSG, uri = %s method= %s\r\n", hm->uri.buf, hm->method.buf);
-		printf(">>> MG_EV_HTTP_MSG \r\n");
-
 		if (mg_match(hm->uri, mg_str("/api/v1/speakerlink/role"), NULL)) {
 
 			// *** PUT ***
@@ -195,31 +199,25 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 				 * 	For now, we're ignoring it...
 				 */
 
-//			    char json[1024];  // make sure it’s large enough
-//			    int n = snprintf(
-//			        json,
-//					1023,
-//			        "{ \"status\": \"ok\", \"received\": \"%s\" }",
-//			        hm->body.buf
-//			    );
-				printf("handling PUT\r\n");
+
+				printf("received PUT\r\n");
 
 				// mg_http_reply(c, 202, "Content-Type: application/json\r\n", json); // MAR: maybe check what it should be exactly
-
+//
+//				mg_http_reply(c, 202, "Content-Type: application/json\r\n",
+//						"{%m:%m, %m:%m}\n", MG_ESC("status"), MG_ESC("ok"),
+//						MG_ESC("received"), MG_ESC(hm->body.buf));
+//
 				mg_http_reply(c, 202, "Content-Type: application/json\r\n",
-						"{%m:%m, %m:%m}\n", MG_ESC("status"), MG_ESC("ok"),
-						MG_ESC("received"), MG_ESC(hm->body.buf));
+						"{}");
 
-				printf("sent mg http reply for the PUT \r\n");
 
 				char *str = mg_json_get_str(hm->body, "$.role");
 				if (str != NULL && strcmp(str, "secondary") == 0) {
-					printf("Enter the IF\r\n");
 					// Extract the client's IP (remote address)
 					char ip_buf[16];
 					mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip,
 							&c->rem);
-					printf("Connected to client IP: %s\r\n", ip_buf);
 
 					// Build WebSocket URL
 					// char ws_url[24];
@@ -282,6 +280,7 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 //			// ------------------- start ws -------------------
 
 	case MG_EV_POLL:
+	case MG_EV_CLOSE:
 		break;
 
 	default:
@@ -637,41 +636,12 @@ void StartMongooseTask(void const *argument) {
 		// safe to read IP
 	}
 
-	LOG("OUTSIDE");
-	printf("outside 2\r\n");
-
-//  printf(netif_default);
-// printf("IP: %s\r\n", ipaddr_ntoa(netif_ip4_addr(netif_default)));
-
-//
-//
-//  /* Wait for network to be ready (DHCP done) */
-//  struct netif *netif = netif_list;
-//  while (netif == NULL || netif_is_link_up(netif) == 0 || netif_is_up(netif) == 0 || netif->ip_addr.addr == 0) {
-//    osDelay(500);
-//    netif = netif_list;
-//  }
-//  printf("IP address assigned: %s\r\n", ipaddr_ntoa(&netif->ip_addr));
-//
-
-//
-//
-//  while (!netif_is_link_up(&gnetif) || !netif_is_up(&gnetif) || gnetif.ip_addr.addr == 0) {
-//    osDelay(500);
-//  }
-
-//  // Wait for network link and IP (DHCP)
-//  while (netif_is_link_up(netif_list) == 0 || netif_is_up(netif_list) == 0) {
-//    osDelay(100);
-//  }
-
-	err_t err;
 	ip = *netif_ip4_addr(netif_default);
 	sprintf(buf, "IP acquired: %u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
 			ip4_addr3(&ip), ip4_addr4(&ip));
 	LOG(buf);
 
-	LOG("mDNS starting");
+
 	mdns_resp_init();
 	mdns_resp_add_netif(netif_default, "22223335", 3600);
 

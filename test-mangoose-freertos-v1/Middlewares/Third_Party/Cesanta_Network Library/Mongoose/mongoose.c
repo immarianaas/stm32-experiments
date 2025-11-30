@@ -20233,7 +20233,6 @@ static void mg_ws_cb(struct mg_connection *c, int ev, void *ev_data) {
       uint8_t final = msg.flags & 128, op = msg.flags & 15;
       // MG_VERBOSE ("fin %d op %d len %d [%.*s]", final, op,
       //                       (int) m.data.len, (int) m.data.len, m.data.buf));
-      printf("ehello? op=%d\r\n", op);
       switch (op) {
         case WEBSOCKET_OP_CONTINUE:
           mg_call(c, MG_EV_WS_CTL, &m);
@@ -20248,7 +20247,6 @@ static void mg_ws_cb(struct mg_connection *c, int ev, void *ev_data) {
           break;
         case WEBSOCKET_OP_TEXT:
         case WEBSOCKET_OP_BINARY:
-        	printf("is it final? %d\r\n", final); //MARR
           if (final) mg_call(c, MG_EV_WS_MSG, &m);
           break;
         case WEBSOCKET_OP_CLOSE:
