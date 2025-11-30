@@ -15,6 +15,8 @@
 
 #include "ptp_comp.h"
 
+
+
 static uint8_t ptp_delay_req_payload[] = { 0x01, 0x02, 0x00, 0x2C, 0x00, 0x00,
 		0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -26,10 +28,13 @@ struct deltatime_ts *prev_ptp_ts = NULL;
 
 static uint16_t seqId;
 
+
 static void handle_end_ptp_exchange() {
+
+
 	if (prev_ptp_ts == NULL) {
-		printf("[handle_end_ptp_exchange] is PTP valid? %d \r\n",
-				is_deltatime_ts_valid(&ptp_ts));
+		//printf("[handle_end_ptp_exchange] is PTP valid? %d \r\n",
+		//		is_deltatime_ts_valid(&ptp_ts));
 
 		prev_ptp_ts = malloc(sizeof(struct deltatime_ts));
 		*prev_ptp_ts = ptp_ts;
@@ -37,8 +42,8 @@ static void handle_end_ptp_exchange() {
 		return;
 	}
 
-	printf("[handle_end_ptp_exchange] is PTP valid? %d \r\n",
-			is_deltatime_ts_valid(&ptp_ts));
+	//printf("[handle_end_ptp_exchange] is PTP valid? %d \r\n",
+	//		is_deltatime_ts_valid(&ptp_ts));
 
 	compute_all_metrics(&ptp_ts, prev_ptp_ts);
 

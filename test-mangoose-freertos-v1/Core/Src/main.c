@@ -105,33 +105,38 @@ void usb_printf(const char *fmt, ...) {
 
 #define LOG(msg)  usb_printf("%s\r\n", msg);
 
-struct mg_mgr mgr;
+static struct mg_mgr mgr;
 
-int WS_READY = 0;
-char ws_url[32];
+static int WS_READY = 0;
+static char ws_url[32];
+static char primary[16];
+static char my_ip[16];
 
 
 static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
 		void *fn_data) {
 	switch (ev) {
 	case MG_EV_WS_OPEN:
-		printf("[old ws] WS connected, strlen=%d, strlen2=%d\r\n",
-				strlen(WEBSOCKETS_CONNECT_DATA),
-				strlen("Hello from STM32 WS client!"));
+		printf("[ws] WS connected!\r\n");
 		// mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
-		size_t sent = mg_ws_send(c, WEBSOCKETS_CONNECT_DATA,
-				strlen(WEBSOCKETS_CONNECT_DATA), WEBSOCKET_OP_TEXT);
-		printf("[old ws] sent=%d\r\n", sent);
+
+		static char reply_buf[1024];
+		snprintf(reply_buf, sizeof(reply_buf), WEBSOCKETS_CONNECT_DATA, my_ip);
+
+		printf("WS message sent: %s\r\n", reply_buf);
+		size_t sent = mg_ws_send(c, reply_buf,
+				strlen(reply_buf), WEBSOCKET_OP_TEXT);
+		printf("[ws] sent=%d\r\n", sent);
 		break;
 
 	case MG_EV_WS_MSG:
-		printf("[old ws] MG_EV_WS_MSG");
+		printf("[ws] MG_EV_WS_MSG");
 		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
-		printf("[old ws] WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
+		printf("[ws] WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
 		break;
 
 	case MG_EV_CLOSE:
-		printf("[old ws] WS connection closed\n");
+		printf("[ws] WS connection closed\n");
 		break;
 	}
 
@@ -170,6 +175,11 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 
 		struct mg_http_message *hm = (struct mg_http_message*) ev_data;
 
+//		static char msgbuf[1024];
+//		snprintf(msgbuf, hm->body.len, hm->body.buf);
+//		printf("recieved http msg: %s\r\n", msgbuf);
+
+
 		if (mg_match(hm->uri, mg_str("/api/v1/speakerlink/role"), NULL)) {
 
 			// *** PUT ***
@@ -189,12 +199,17 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 				 */
 
 				printf("received PUT\r\n");
-
 				mg_http_reply(c, 202, "Content-Type: application/json\r\n",
 						"{}");
 
 				char *str = mg_json_get_str(hm->body, "$.role");
+//				if (str != NULL)
+//					printf("role: %s\r\n", str);
 				if (str != NULL && strcmp(str, "secondary") == 0) {
+					// Extract the primary serial num:
+					strncpy(primary, mg_json_get_str(hm->body, "$.primary"), sizeof(primary));
+					printf("Primary serial: %s\r\n", primary);
+
 					// Extract the client's IP (remote address)
 					char ip_buf[16];
 					mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip,
@@ -210,14 +225,22 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 					//mg_ws_upgrade(c, hm, NULL);
 				}
 
+
+
 				return;
 			}
 
 			// *** GET ***
 			else if (mg_match(hm->method, mg_str("GET"), NULL)) {
-				// TODO: handle primary ID dynamically!!
+//				mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+//						"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
+//
+				static char reply_buf[256];
+				snprintf(reply_buf, sizeof(reply_buf), "{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"%s\",\"role\":\"secondary\"}", primary);// Assuming server listens on /ws
+
 				mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-						"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
+						reply_buf);
+
 				return;
 
 			}
@@ -228,29 +251,45 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 	case MG_EV_POLL:
 		break;
 	case MG_EV_CLOSE:
-		printf("MG_EV_CLOSE connection closed\n");
+
+		// Extract the client's IP (remote address)
+		char ip_buf[16];
+		mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip,
+				&c->rem);
+
+		printf("MG_EV_CLOSE connection closed (%s)\n", ip_buf);
+
 		// mg_close_conn(c);
 		break;
 
 
-
-	// --- from the WS function ---
-	case MG_EV_WS_OPEN:
-		printf("WS connected, strlen=%d, strlen2=%d\r\n",
-				strlen(WEBSOCKETS_CONNECT_DATA),
-				strlen("Hello from STM32 WS client!"));
-		// mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
-		size_t sent = mg_ws_send(c, WEBSOCKETS_CONNECT_DATA,
-				strlen(WEBSOCKETS_CONNECT_DATA), WEBSOCKET_OP_TEXT);
-		printf("sent=%d\r\n", sent);
-		break;
-
-	case MG_EV_WS_MSG:
-		printf("MG_EV_WS_MSG");
-		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
-		printf("WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
-		break;
 //
+//	// --- from the WS function ---
+//	case MG_EV_WS_OPEN:
+//
+//		printf("MG_EV_WS_OPEN\r\n");
+//		printf("WS connected, strlen=%d, strlen2=%d\r\n",
+//				strlen(WEBSOCKETS_CONNECT_DATA),
+//				strlen("Hello from STM32 WS client!"));
+//
+//		ip_addr_t ip = *netif_ip4_addr(netif_default);
+//		static char reply_buf[1024];
+//		snprintf(reply_buf, sizeof(reply_buf), WEBSOCKETS_CONNECT_DATA, ip4_addr1(&ip), ip4_addr2(&ip),
+//				ip4_addr3(&ip), ip4_addr4(&ip));// Assuming server listens on /ws
+//
+//		printf("websockets message: %s\r\n", reply_buf);
+//		// mg_ws_send(c, "Hello from STM32 WS client!", 28, WEBSOCKET_OP_TEXT);
+//		size_t sent = mg_ws_send(c, reply_buf,
+//				strlen(reply_buf), WEBSOCKET_OP_TEXT);
+//		printf("sent=%d\r\n", sent);
+//		break;
+//
+//	case MG_EV_WS_MSG:
+//		printf("MG_EV_WS_MSG");
+//		struct mg_ws_message *wm = (struct mg_ws_message*) ev_data;
+//		printf("WS message: %.*s\n", (int) wm->data.len, wm->data.buf);
+//		break;
+////
 //	case MG_EV_CLOSE:
 //		printf("WS connection closed\n");
 //		break;
@@ -531,8 +570,13 @@ void add_txt_mdns(struct mdns_service *service, void *txt_userdata) {
 	// 		strlen("ip=192.168.10.127"));
 
 	// home:
-	mdns_resp_add_service_txtitem(service, "ip=192.168.3.39",
-			strlen("ip=192.168.3.39"));
+
+	char ip_mdns_txt[32];
+	snprintf(ip_mdns_txt, sizeof(ip_mdns_txt), "ip=%s", my_ip);
+	mdns_resp_add_service_txtitem(service, ip_mdns_txt,
+			strlen(ip_mdns_txt));
+	printf("mdns text: %s\r\n", ip_mdns_txt);
+
 	mdns_resp_add_service_txtitem(service, "nt=e", 4);
 	mdns_resp_add_service_txtitem(service, "pn=Beosound 2 3rd gen-22223335",
 			strlen("pn=Beosound 2 3rd gen-22223335"));
@@ -605,6 +649,11 @@ void StartMongooseTask(void const *argument) {
 			ip4_addr3(&ip), ip4_addr4(&ip));
 	LOG(buf);
 
+	snprintf(my_ip, sizeof(my_ip), "%u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
+			ip4_addr3(&ip), ip4_addr4(&ip));
+
+	printf("My IP (str): %s\r\n", my_ip);
+
 	mdns_resp_init();
 	mdns_resp_add_netif(netif_default, "22223335", 3600);
 
@@ -653,12 +702,12 @@ void StartMongooseTask(void const *argument) {
 			WS_READY = 0;
 
 		}
-		if (count++ > 100)
-		{
-			mdns_resp_announce(netif_default); // actively broadcast the service
-			count = 0;
-
-		}
+//		if (count++ > 500)
+//		{
+//			printf("runing [mdns_resp_announce]\r\n");
+//			mdns_resp_announce(netif_default); // actively broadcast the service
+//			count = 0;
+//		}
 
 
 

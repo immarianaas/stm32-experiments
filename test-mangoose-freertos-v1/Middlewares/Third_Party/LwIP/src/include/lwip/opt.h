@@ -3341,14 +3341,14 @@
  * MEM_DEBUG: Enable debugging in mem.c.
  */
 #if !defined MEM_DEBUG || defined __DOXYGEN__
-#define MEM_DEBUG                       LWIP_DBG_OFF
+#define MEM_DEBUG                       LWIP_DBG_ON // MARRR
 #endif
 
 /**
  * MEMP_DEBUG: Enable debugging in memp.c.
  */
 #if !defined MEMP_DEBUG || defined __DOXYGEN__
-#define MEMP_DEBUG                      LWIP_DBG_OFF
+#define MEMP_DEBUG                      LWIP_DBG_OON
 #endif
 
 /**

@@ -10,6 +10,8 @@
 
 #define NANO 1000000000
 
+#define SHOULD_PRINT_PTP 0
+
 typedef int64_t DeltaTimeType; // in Nano seconds; can be pos or neg
 
 struct deltatime_ts {
@@ -19,9 +21,15 @@ struct deltatime_ts {
 	DeltaTimeType t4;
 };
 
+struct ptp_metrics {
+	double skew;
+	DeltaTimeType offset;
+} result_ptp;
 
 static void print_deltatime_ts(struct deltatime_ts *dt_ts)
 {
+	if (!SHOULD_PRINT_PTP) return;
+
 	int32_t seconds = (int32_t) (dt_ts->t1/ NANO);
 	int32_t nanoseconds = (int32_t) (dt_ts->t1 % NANO);
 	printf("t1: %" PRId32 ".%09" PRId32 "\r\n", seconds, nanoseconds);
@@ -40,6 +48,7 @@ static void print_deltatime_ts(struct deltatime_ts *dt_ts)
 
 }
 static void print_deltatime(DeltaTimeType value, char *add_str) {
+	if (!SHOULD_PRINT_PTP) return;
 
 	char sign = (value < 0) ? '-' : '+';
 	if (value < 0) value = -value;   // make positive for printing
@@ -138,7 +147,8 @@ static void compute_all_metrics(struct deltatime_ts *ts_curr, struct deltatime_t
 	print_deltatime_ts(ts_prev);
 
 	double skew = compute_skew_deltatime(ts_curr, ts_prev);
-	printf("[compute_all_metrics]: skew = %f\r\n", skew);
+	if (SHOULD_PRINT_PTP)
+		printf("[compute_all_metrics]: skew = %f\r\n", skew);
 
 	DeltaTimeType pathdelay = compute_pathdelay_deltatime(ts_curr, skew);
 	print_deltatime(pathdelay, "[compute_all_metrics]: pathdelay");
@@ -155,6 +165,9 @@ static void compute_all_metrics(struct deltatime_ts *ts_curr, struct deltatime_t
 
 	c_t1 = compute_t1(ts_curr, offset_website, pathdelay);
 	print_deltatime(c_t1, "[... website]: c_t1");
+
+	result_ptp.skew = skew;
+	result_ptp.offset = offset_Henrik;
 
 }
 
