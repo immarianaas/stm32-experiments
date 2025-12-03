@@ -441,8 +441,6 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     }
   }while(errval == ERR_BUF);
 
-  // MARRR: add timestamp to pbuf
-  // TODO: are we sure this is the correct one?
 
   p->timestamp.TimeStampHigh = heth.RxDescList.TimeStamp.TimeStampHigh;
   p->timestamp.TimeStampLow = heth.RxDescList.TimeStamp.TimeStampLow;
@@ -465,10 +463,6 @@ static struct pbuf * low_level_input(struct netif *netif)
   if(RxAllocStatus == RX_ALLOC_OK)
   {
     HAL_ETH_ReadData(&heth, (void **)&p);
-
-//    HAL_ETH_PTP_GetRxTimestamp(&heth, &(p->timestamp));
-//    printf(">>>> Rx timestamp: high=0x%" PRIX32 ", low=0x%" PRIX32 "\n",p->timestamp.TimeStampHigh, p->timestamp.TimeStampLow);
-
   }
 
   return p;
@@ -915,7 +909,6 @@ void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff, uint16_t 
   // MARRR: add timestamp
   p->timestamp.TimeStampHigh = heth.RxDescList.TimeStamp.TimeStampHigh;
   p->timestamp.TimeStampLow = heth.RxDescList.TimeStamp.TimeStampLow;
-
 
   /* Chain the buffer. */
   if (!*ppStart)

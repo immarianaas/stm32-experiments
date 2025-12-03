@@ -10,7 +10,7 @@
 
 #define NANO 1000000000
 
-#define SHOULD_PRINT_PTP 0
+#define SHOULD_PRINT_PTP 1
 
 typedef int64_t DeltaTimeType; // in Nano seconds; can be pos or neg
 
@@ -61,8 +61,10 @@ static void print_deltatime(DeltaTimeType value, char *add_str) {
 
 
 static DeltaTimeType toDeltaTimeType(ETH_TimeStampTypeDef *a) {
-	return (DeltaTimeType) ((uint64_t) a->TimeStampHigh * NANO)
+
+	return (DeltaTimeType) ((uint64_t) a->TimeStampHigh * 1000000)
 			+ (uint64_t) a->TimeStampLow;
+	// 1 ms = 1000000 ns
 }
 
 

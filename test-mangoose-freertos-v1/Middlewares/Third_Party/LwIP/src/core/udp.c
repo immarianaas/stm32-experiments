@@ -49,6 +49,7 @@
 
 #if LWIP_UDP /* don't build if not configured for use in lwipopts.h */
 
+#include "lwip.h"
 #include "lwip/udp.h"
 #include "lwip/def.h"
 #include "lwip/memp.h"
@@ -594,10 +595,14 @@ udp_sendto_chksum(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip,
     return ERR_RTE;
   }
 #if LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UDP
-   return udp_sendto_if_chksum(pcb, p, dst_ip, dst_port, netif, have_chksum, chksum);
+	err_t err = udp_sendto_if_chksum(pcb, p, dst_ip, dst_port, netif, have_chksum, chksum);
 #else /* LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UDP */
-   return udp_sendto_if(pcb, p, dst_ip, dst_port, netif);
+	err_t err = udp_sendto_if(pcb, p, dst_ip, dst_port, netif);
 #endif /* LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UDP */
+
+	p->timestamp.TimeStampHigh = heth.RxDescList.TimeStamp.TimeStampHigh;
+	p->timestamp.TimeStampLow = heth.RxDescList.TimeStamp.TimeStampLow;
+	return err;
 }
 
 /**

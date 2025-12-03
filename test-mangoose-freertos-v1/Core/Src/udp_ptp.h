@@ -53,12 +53,17 @@ static void handle_end_ptp_exchange() {
 static DeltaTimeType get_dt_time_from_msg(const int sindex /*starting index34*/,
 		uint8_t *data) {
 
-	DeltaTimeType result = 0;
-
-	for (int i = 0; i < 10; i++) {
-		result = (result << 8) | data[sindex + i];
+	uint32_t sec = 0;
+	for (int i = 0; i < 6; i++) {
+		sec = (sec << 8) | data[sindex + i];
 	}
 
+	uint32_t nanosec = 0;
+	for (int i = 6; i < 10; i++) {
+		nanosec = (nanosec << 8) | data[sindex + i];
+	}
+
+	DeltaTimeType result = (DeltaTimeType) sec * 1000000000 + (DeltaTimeType) nanosec;
 	return result;
 }
 
@@ -112,6 +117,13 @@ static void handle_udp_ptp_sync(void *arg, struct udp_pcb *upcb, struct pbuf *p,
 
 }
 
+static void print_sub_payload_ptp(uint8_t *data, int sindex, int len) {
+	for (u16_t i = sindex; i < sindex + len; i++) {
+		printf("%02X ", data[i]);
+	}
+	printf("\r\n");
+}
+
 static void handle_udp_ptp(void *arg,
 		struct udp_pcb *upcb,
 		struct pbuf *p,
@@ -129,6 +141,7 @@ static void handle_udp_ptp(void *arg,
 		ptp_ts.t1 = get_dt_time_from_msg(34, data);
 		print_deltatime(ptp_ts.t1,
 				"[handle_udp_ptp] received FOLLOW Up ((t1))");
+		print_sub_payload_ptp(data, 34, 10);
 
 		send_delay_req(upcb, addr, port);
 

@@ -44,6 +44,17 @@ static DeltaTimeType obtain_secondary_ts(DeltaTimeType pts_primary, struct ptp_m
 	return (1 * pts_primary) + ptp_info.offset;
 }
 
+static DeltaTimeType get_dt_time_from_rtp_msg(const int sindex /*starting index34*/,
+		uint8_t *data, const int len) {
+
+	DeltaTimeType result = 0;
+
+	for (int i = 0; i < len; i++) {
+		result = (result << 8) | data[sindex + i];
+	}
+
+	return result;
+}
 
 static void handle_udp_rtp(void *arg, struct udp_pcb *upcb, struct pbuf *p,
 		const ip_addr_t *addr, u16_t port) {
@@ -59,8 +70,13 @@ static void handle_udp_rtp(void *arg, struct udp_pcb *upcb, struct pbuf *p,
 //	printf("delay: ");
 //	print_sub_payload(data, 27+1, 1);
 
-	DeltaTimeType delay = data[28] * 1000000; // convert [ms] to [ns]
-	DeltaTimeType ts = get_dt_time_from_msg(17, data); // fetches 10 bytes
+
+	DeltaTimeType delay = get_dt_time_from_rtp_msg(17, data, 2) * 1000000; // first 2 bytes is delay in ms - convert to ns
+	DeltaTimeType ts = get_dt_time_from_rtp_msg(19, data, 8);
+
+
+	//DeltaTimeType delay = data[28] * 1000000; // convert [ms] to [ns]
+	// DeltaTimeType ts = get_dt_time_from_msg(17, data); // fetches 10 bytes
 
 
 //
