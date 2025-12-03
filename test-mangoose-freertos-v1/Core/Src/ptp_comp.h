@@ -10,7 +10,7 @@
 
 #define NANO 1000000000
 
-#define SHOULD_PRINT_PTP 0
+#define SHOULD_PRINT_PTP 1
 
 typedef int64_t DeltaTimeType; // in Nano seconds; can be pos or neg
 
