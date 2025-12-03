@@ -64,11 +64,15 @@
 
 RTC_HandleTypeDef hrtc;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart3;
 
 osThreadId MongooseTaskHandle;
 osThreadId HandlePTPTaskHandle;
 /* USER CODE BEGIN PV */
+
+static int count = 0;
 
 /* USER CODE END PV */
 
@@ -77,6 +81,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_RTC_Init(void);
+static void MX_TIM2_Init(void);
 void StartMongooseTask(void const *argument);
 void StartHandlePTPTask(void const *argument);
 
@@ -112,7 +117,6 @@ static char ws_url[32];
 static char primary[16];
 static char my_ip[16];
 
-
 static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
 		void *fn_data) {
 	switch (ev) {
@@ -124,8 +128,8 @@ static void ws_client_fn(struct mg_connection *c, int ev, void *ev_data,
 		snprintf(reply_buf, sizeof(reply_buf), WEBSOCKETS_CONNECT_DATA, my_ip);
 
 		printf("WS message sent: %s\r\n", reply_buf);
-		size_t sent = mg_ws_send(c, reply_buf,
-				strlen(reply_buf), WEBSOCKET_OP_TEXT);
+		size_t sent = mg_ws_send(c, reply_buf, strlen(reply_buf),
+				WEBSOCKET_OP_TEXT);
 		printf("[ws] sent=%d\r\n", sent);
 		break;
 
@@ -179,7 +183,6 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 //		snprintf(msgbuf, hm->body.len, hm->body.buf);
 //		printf("recieved http msg: %s\r\n", msgbuf);
 
-
 		if (mg_match(hm->uri, mg_str("/api/v1/speakerlink/role"), NULL)) {
 
 			// *** PUT ***
@@ -207,7 +210,8 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 //					printf("role: %s\r\n", str);
 				if (str != NULL && strcmp(str, "secondary") == 0) {
 					// Extract the primary serial num:
-					strncpy(primary, mg_json_get_str(hm->body, "$.primary"), sizeof(primary));
+					strncpy(primary, mg_json_get_str(hm->body, "$.primary"),
+							sizeof(primary));
 					printf("Primary serial: %s\r\n", primary);
 
 					// Extract the client's IP (remote address)
@@ -225,8 +229,6 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 					//mg_ws_upgrade(c, hm, NULL);
 				}
 
-
-
 				return;
 			}
 
@@ -236,7 +238,9 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 //						"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"36956626\",\"role\":\"secondary\"}");
 //
 				static char reply_buf[256];
-				snprintf(reply_buf, sizeof(reply_buf), "{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"%s\",\"role\":\"secondary\"}", primary);// Assuming server listens on /ws
+				snprintf(reply_buf, sizeof(reply_buf),
+						"{\"channel\":\"any\",\"desired\":\"secondary\",\"primary\":\"%s\",\"role\":\"secondary\"}",
+						primary);			// Assuming server listens on /ws
 
 				mg_http_reply(c, 200, "Content-Type: application/json\r\n",
 						reply_buf);
@@ -254,14 +258,12 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 
 		// Extract the client's IP (remote address)
 		char ip_buf[16];
-		mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip,
-				&c->rem);
+		mg_snprintf(ip_buf, sizeof(ip_buf), "%M", mg_print_ip, &c->rem);
 
 		printf("MG_EV_CLOSE connection closed (%s)\n", ip_buf);
 
 		// mg_close_conn(c);
 		break;
-
 
 //
 //	// --- from the WS function ---
@@ -293,7 +295,7 @@ static void http_fn(struct mg_connection *c, int ev, void *ev_data) {
 //	case MG_EV_CLOSE:
 //		printf("WS connection closed\n");
 //		break;
-	// --- from the WS function ---
+		// --- from the WS function ---
 
 	default:
 		printf("[http handler] none of the above, event=%d\r\n", ev);
@@ -334,7 +336,10 @@ int main(void) {
 	MX_GPIO_Init();
 	MX_USART3_UART_Init();
 	MX_RTC_Init();
+	MX_TIM2_Init();
 	/* USER CODE BEGIN 2 */
+
+	HAL_StatusTypeDef ret = HAL_TIM_Base_Start_IT(&htim2);
 
 	/* USER CODE END 2 */
 
@@ -356,13 +361,13 @@ int main(void) {
 
 	/* Create the thread(s) */
 	/* definition and creation of MongooseTask */
-	// osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 512);
 	osThreadDef(MongooseTask, StartMongooseTask, osPriorityNormal, 0, 512);
 	MongooseTaskHandle = osThreadCreate(osThread(MongooseTask), NULL);
 
 	/* definition and creation of HandlePTPTask */
-//	osThreadDef(HandlePTPTask, StartHandlePTPTask, osPriorityHigh, 0, 256);
-//	HandlePTPTaskHandle = osThreadCreate(osThread(HandlePTPTask), NULL);
+	osThreadDef(HandlePTPTask, StartHandlePTPTask, osPriorityHigh, 0, 256);
+	HandlePTPTaskHandle = osThreadCreate(osThread(HandlePTPTask), NULL);
+
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
 	/* USER CODE END RTOS_THREADS */
@@ -471,6 +476,74 @@ static void MX_RTC_Init(void) {
 }
 
 /**
+ * @brief TIM2 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_TIM2_Init(void) {
+
+	/* USER CODE BEGIN TIM2_Init 0 */
+
+	/* USER CODE END TIM2_Init 0 */
+
+	TIM_ClockConfigTypeDef sClockSourceConfig = { 0 };
+	TIM_MasterConfigTypeDef sMasterConfig = { 0 };
+
+	/* USER CODE BEGIN TIM2_Init 1 */
+	////////////////
+	RCC_ClkInitTypeDef clkconfig;
+	uint32_t uwTimclock, uwAPB1Prescaler = 0U;
+
+	uint32_t uwPrescalerValue = 0U;
+	uint32_t pFLatency;
+
+	HAL_StatusTypeDef status;
+
+	/* Get clock configuration */
+	HAL_RCC_GetClockConfig(&clkconfig, &pFLatency);
+
+	/* Get APB1 prescaler */
+	uwAPB1Prescaler = clkconfig.APB1CLKDivider;
+	/* Compute TIM6 clock */
+	if (uwAPB1Prescaler == RCC_HCLK_DIV1) {
+		uwTimclock = HAL_RCC_GetPCLK1Freq();
+	} else {
+		uwTimclock = 2UL * HAL_RCC_GetPCLK1Freq();
+	}
+
+	/* Compute the prescaler value to have TIM2 counter clock equal to 100MHz */
+	uwPrescalerValue = (uint32_t) ((uwTimclock / 10000U) - 1U);
+	////////////////
+
+
+	/* USER CODE END TIM2_Init 1 */
+	htim2.Instance = TIM2;
+	htim2.Init.Prescaler = uwPrescalerValue;
+	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+	// htim2.Init.Period = 4294967295;
+	htim2.Init.Period = (1000000U / 1000U) - 1U; // 1 ms
+	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
+		Error_Handler();
+	}
+	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+	if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK) {
+		Error_Handler();
+	}
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig)
+			!= HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN TIM2_Init 2 */
+
+	/* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
  * @brief USART3 Initialization Function
  * @param None
  * @retval None
@@ -573,8 +646,7 @@ void add_txt_mdns(struct mdns_service *service, void *txt_userdata) {
 
 	char ip_mdns_txt[32];
 	snprintf(ip_mdns_txt, sizeof(ip_mdns_txt), "ip=%s", my_ip);
-	mdns_resp_add_service_txtitem(service, ip_mdns_txt,
-			strlen(ip_mdns_txt));
+	mdns_resp_add_service_txtitem(service, ip_mdns_txt, strlen(ip_mdns_txt));
 	printf("mdns text: %s\r\n", ip_mdns_txt);
 
 	mdns_resp_add_service_txtitem(service, "nt=e", 4);
@@ -600,24 +672,27 @@ void StartMongooseTask(void const *argument) {
 	/* init code for LWIP */
 	MX_LWIP_Init();
 
-	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSE);
-	SET_BIT(ETH->PTPTSCR, ETH_PTPTSCR_TSFCU);
-	// ETH->PTPTSCR |= ETH_PTPTSCR_TSE | ETH_PTPTSCR_TSFCU;
-
-	ETH_PTP_ConfigTypeDef ptp_config = { .Timestamp = 1, .TimestampUpdateMode =
-			0, .TimestampInitialize = 1, .TimestampUpdate = 0,
-			.TimestampAddendUpdate = 0, .TimestampAll = 1,
-			.TimestampRolloverMode = 0, .TimestampV2 = 1,
-			.TimestampEthernet = 1, .TimestampIPv6 = 1, .TimestampIPv4 = 1,
-			.TimestampEvent = 1, .TimestampMaster = 0, .TimestampFilter = 0,
-			.TimestampClockType = 0, .TimestampAddend = 0,
-			.TimestampSubsecondInc = 0 };
-	HAL_ETH_PTP_SetConfig(&heth, &ptp_config);
-
 	/* init code for USB_DEVICE */
 	MX_USB_DEVICE_Init();
 	/* USER CODE BEGIN 5 */
 	/* Infinite loop */
+
+//	uint32_t uscount = __HAL_TIM_GET_COUNTER(&htim2);
+//	uint32_t mscount = HAL_GetTick();
+//
+//	while (1) {
+//		printf("ms=%d ; us=%d\r\n", mscount, uscount);
+//
+//		uscount = __HAL_TIM_GET_COUNTER(&htim2);
+//		mscount = HAL_GetTick();
+//
+//		osDelay(1000); // in ms
+//	}
+
+//
+//
+//  HAL_StatusTypeDef ret = HAL_TIM_Base_Start_IT(&htim2);
+//  printf("ret=%d\r\n", ret);
 
 	/* USER CODE BEGIN 5 */
 // wait for LWIP to be on (probably should be changed..?)
@@ -649,8 +724,8 @@ void StartMongooseTask(void const *argument) {
 			ip4_addr3(&ip), ip4_addr4(&ip));
 	LOG(buf);
 
-	snprintf(my_ip, sizeof(my_ip), "%u.%u.%u.%u", ip4_addr1(&ip), ip4_addr2(&ip),
-			ip4_addr3(&ip), ip4_addr4(&ip));
+	snprintf(my_ip, sizeof(my_ip), "%u.%u.%u.%u", ip4_addr1(&ip),
+			ip4_addr2(&ip), ip4_addr3(&ip), ip4_addr4(&ip));
 
 	printf("My IP (str): %s\r\n", my_ip);
 
@@ -690,7 +765,9 @@ void StartMongooseTask(void const *argument) {
 	udp_bind(pcb_rtp, IP_ADDR_ANY, 10020);
 	udp_recv(pcb_rtp, handle_udp_rtp, pcb_rtp);
 
-	int count = 0;
+	int loopcount = 0;
+	printf("count=%d\r", count);
+
 // Main event loop
 	for (;;) {
 		// MX_LWIP_Process() ; // maybe??
@@ -702,15 +779,14 @@ void StartMongooseTask(void const *argument) {
 			WS_READY = 0;
 
 		}
-//		if (count++ > 500)
-//		{
+		if (loopcount++ > 100) {
 //			printf("runing [mdns_resp_announce]\r\n");
 //			mdns_resp_announce(netif_default); // actively broadcast the service
-//			count = 0;
-//		}
+			loopcount = 0;
 
-
-
+			//uint32_t uscount =__HAL_TIM_GET_COUNTER(&htim2);
+			//printf("timer count=%d\r\n", uscount );
+		}
 
 		// osDelay(1);              // Yield to other FreeRTOS tasks
 	}
@@ -753,7 +829,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		HAL_IncTick();
 	}
 	/* USER CODE BEGIN Callback 1 */
-
+//
+//  if (htim->Instance == TIM2)
+//  {
+//	  ++count;
+//  }
 	/* USER CODE END Callback 1 */
 }
 
